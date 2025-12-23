@@ -17,7 +17,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    name: 'Dashboard',
+    name: '대시보드',
     path: '/admin',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -26,7 +26,7 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    name: 'Chatbots',
+    name: '챗봇',
     path: '/admin/chatbots',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,7 +66,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* Logo */}
         <div className="flex items-center justify-center h-16 border-b border-gray-200">
           <Link to="/admin" className="text-xl font-bold text-primary-600">
-            GraphRAG Admin
+            GraphRAG 관리자
           </Link>
         </div>
 
@@ -124,7 +124,7 @@ export default function Layout({ children }: LayoutProps) {
                 onClick={handleLogout}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
-                Logout
+                로그아웃
               </button>
             </div>
           </div>

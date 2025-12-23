@@ -14,25 +14,25 @@ const statusConfig = {
     bg: 'bg-green-100',
     text: 'text-green-800',
     dot: 'bg-green-500',
-    label: 'Active',
+    label: '활성',
   },
   inactive: {
     bg: 'bg-gray-100',
     text: 'text-gray-800',
     dot: 'bg-gray-500',
-    label: 'Inactive',
+    label: '비활성',
   },
   processing: {
     bg: 'bg-yellow-100',
     text: 'text-yellow-800',
     dot: 'bg-yellow-500',
-    label: 'Processing',
+    label: '처리 중',
   },
   error: {
     bg: 'bg-red-100',
     text: 'text-red-800',
     dot: 'bg-red-500',
-    label: 'Error',
+    label: '오류',
   },
 }
 

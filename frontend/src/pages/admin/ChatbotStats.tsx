@@ -45,10 +45,10 @@ export default function ChatbotStats() {
     return (
       <Layout>
         <div className="text-center py-12">
-          <h2 className="text-lg font-semibold text-gray-900">Failed to load statistics</h2>
-          <p className="text-gray-600 mt-2">Please try again later.</p>
+          <h2 className="text-lg font-semibold text-gray-900">통계를 불러오는데 실패했습니다</h2>
+          <p className="text-gray-600 mt-2">나중에 다시 시도해주세요.</p>
           <Link to={`/admin/chatbots/${id}`} className="btn-primary mt-4 inline-block">
-            Back to Chatbot
+            챗봇으로 돌아가기
           </Link>
         </div>
       </Layout>
@@ -74,9 +74,9 @@ export default function ChatbotStats() {
                 {chatbot_name}
               </Link>
               <span>/</span>
-              <span>Statistics</span>
+              <span>통계</span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Statistics</h1>
+            <h1 className="text-2xl font-bold text-gray-900">통계</h1>
           </div>
           <div className="flex items-center gap-3">
             <select
@@ -84,9 +84,9 @@ export default function ChatbotStats() {
               onChange={(e) => setDays(Number(e.target.value))}
               className="rounded-lg border-gray-300 text-sm"
             >
-              <option value={7}>Last 7 days</option>
-              <option value={30}>Last 30 days</option>
-              <option value={90}>Last 90 days</option>
+              <option value={7}>최근 7일</option>
+              <option value={30}>최근 30일</option>
+              <option value={90}>최근 90일</option>
             </select>
             <Button
               variant="secondary"
@@ -94,7 +94,7 @@ export default function ChatbotStats() {
               onClick={() => recalculateMutation.mutate()}
               isLoading={recalculateMutation.isPending}
             >
-              Recalculate
+              재계산
             </Button>
           </div>
         </div>
@@ -102,7 +102,7 @@ export default function ChatbotStats() {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="card">
-            <div className="text-sm text-gray-500">Total Sessions</div>
+            <div className="text-sm text-gray-500">총 세션</div>
             <div className="text-3xl font-bold text-gray-900 mt-1">
               {stats.total_sessions.toLocaleString()}
             </div>
@@ -111,16 +111,16 @@ export default function ChatbotStats() {
             </div>
           </div>
           <div className="card">
-            <div className="text-sm text-gray-500">Total Messages</div>
+            <div className="text-sm text-gray-500">총 메시지</div>
             <div className="text-3xl font-bold text-gray-900 mt-1">
               {stats.total_messages.toLocaleString()}
             </div>
             <div className="text-sm text-gray-500 mt-1">
-              ~{Math.round(stats.total_messages / stats.period_days)} per day
+              일 평균 ~{Math.round(stats.total_messages / stats.period_days)}개
             </div>
           </div>
           <div className="card">
-            <div className="text-sm text-gray-500">Avg Response Time</div>
+            <div className="text-sm text-gray-500">평균 응답 시간</div>
             <div className="text-3xl font-bold text-gray-900 mt-1">
               {stats.avg_response_time_ms
                 ? `${(stats.avg_response_time_ms / 1000).toFixed(2)}s`
@@ -134,20 +134,20 @@ export default function ChatbotStats() {
 
         {/* Daily Stats Chart */}
         <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Daily Activity</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">일별 활동</h2>
 
           {stats.daily_stats.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              No data available for this period.
+              이 기간에 대한 데이터가 없습니다.
             </div>
           ) : (
             <div className="space-y-4">
               {/* Messages Chart */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Messages</span>
+                  <span className="text-sm font-medium text-gray-700">메시지</span>
                   <span className="text-sm text-gray-500">
-                    {stats.total_messages} total
+                    총 {stats.total_messages}개
                   </span>
                 </div>
                 <div className="flex items-end gap-1 h-24">
@@ -161,7 +161,7 @@ export default function ChatbotStats() {
                       }}
                     >
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 pointer-events-none">
-                        {day.date}: {day.messages} messages
+                        {day.date}: {day.messages}개 메시지
                       </div>
                     </div>
                   ))}
@@ -171,9 +171,9 @@ export default function ChatbotStats() {
               {/* Sessions Chart */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Sessions</span>
+                  <span className="text-sm font-medium text-gray-700">세션</span>
                   <span className="text-sm text-gray-500">
-                    {stats.total_sessions} total
+                    총 {stats.total_sessions}개
                   </span>
                 </div>
                 <div className="flex items-end gap-1 h-24">
@@ -187,7 +187,7 @@ export default function ChatbotStats() {
                       }}
                     >
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 pointer-events-none">
-                        {day.date}: {day.sessions} sessions
+                        {day.date}: {day.sessions}개 세션
                       </div>
                     </div>
                   ))}
@@ -199,22 +199,22 @@ export default function ChatbotStats() {
 
         {/* Daily Stats Table */}
         <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Daily Breakdown</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">일별 상세</h2>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
+                    날짜
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Sessions
+                    세션
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Messages
+                    메시지
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Avg Response
+                    평균 응답
                   </th>
                 </tr>
               </thead>

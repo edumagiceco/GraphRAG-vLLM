@@ -23,13 +23,13 @@ export default function FileUpload({
   const validateFile = (file: File): string | null => {
     // Check file type
     if (!file.name.toLowerCase().endsWith('.pdf')) {
-      return 'Only PDF files are supported'
+      return 'PDF 파일만 지원됩니다'
     }
 
     // Check file size
     const maxSize = maxSizeMB * 1024 * 1024
     if (file.size > maxSize) {
-      return `File size must be less than ${maxSizeMB}MB`
+      return `파일 크기는 ${maxSizeMB}MB 이하여야 합니다`
     }
 
     return null
@@ -128,7 +128,7 @@ export default function FileUpload({
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
-            <p className="text-gray-600">Uploading...</p>
+            <p className="text-gray-600">업로드 중...</p>
           </div>
         ) : (
           <>
@@ -147,12 +147,12 @@ export default function FileUpload({
             </svg>
             <p className="text-gray-600 mb-1">
               <span className="text-primary-600 font-medium">
-                Click to upload
+                클릭하여 업로드
               </span>{' '}
-              or drag and drop
+              또는 파일을 끌어다 놓으세요
             </p>
             <p className="text-sm text-gray-500">
-              PDF files up to {maxSizeMB}MB
+              최대 {maxSizeMB}MB PDF 파일
             </p>
           </>
         )}

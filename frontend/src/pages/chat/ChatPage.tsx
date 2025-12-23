@@ -122,10 +122,10 @@ export default function ChatPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="card max-w-md text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            Chatbot Not Found
+            챗봇을 찾을 수 없습니다
           </h1>
           <p className="text-gray-600">
-            The chatbot you're looking for doesn't exist or is not available.
+            찾으시는 챗봇이 존재하지 않거나 사용할 수 없습니다.
           </p>
         </div>
       </div>
@@ -209,8 +209,8 @@ export default function ChatPage() {
             onStop={handleStop}
             placeholder={
               createSessionMutation.isPending
-                ? 'Starting session...'
-                : 'Ask a question...'
+                ? '세션 시작 중...'
+                : '질문을 입력하세요...'
             }
           />
         </div>

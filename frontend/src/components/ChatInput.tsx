@@ -14,7 +14,7 @@ interface ChatInputProps {
 export default function ChatInput({
   onSend,
   disabled = false,
-  placeholder = 'Type your message...',
+  placeholder = '메시지를 입력하세요...',
   isGenerating = false,
   onStop,
 }: ChatInputProps) {
@@ -71,7 +71,7 @@ export default function ChatInput({
           type="button"
           onClick={onStop}
           className="flex-shrink-0 w-12 h-12 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
-          title="Stop generating"
+          title="생성 중지"
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
             <rect x="6" y="6" width="12" height="12" rx="2" />
@@ -82,7 +82,7 @@ export default function ChatInput({
           type="submit"
           disabled={disabled || !message.trim()}
           className="flex-shrink-0 w-12 h-12 rounded-full bg-primary-600 text-white flex items-center justify-center hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-          title="Send message"
+          title="메시지 전송"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

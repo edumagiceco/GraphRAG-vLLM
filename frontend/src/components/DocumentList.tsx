@@ -18,7 +18,7 @@ function formatFileSize(bytes: number): string {
 }
 
 function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -75,8 +75,8 @@ export default function DocumentList({
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           />
         </svg>
-        <p className="mt-2">No documents uploaded yet.</p>
-        <p className="text-sm">Upload PDF files to build your chatbot's knowledge base.</p>
+        <p className="mt-2">아직 업로드된 문서가 없습니다.</p>
+        <p className="text-sm">PDF 파일을 업로드하여 챗봇의 지식 베이스를 구축하세요.</p>
       </div>
     )
   }
@@ -88,22 +88,22 @@ export default function DocumentList({
           <thead>
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Document
+                문서
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
+                상태
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Size
+                크기
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Chunks
+                청크
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Entities
+                엔티티
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Uploaded
+                업로드일
               </th>
               <th className="px-4 py-3 w-10"></th>
             </tr>
@@ -153,7 +153,7 @@ export default function DocumentList({
                       onClick={() => setDetailTarget(doc)}
                       disabled={doc.status !== 'completed'}
                       className="p-1 text-gray-400 hover:text-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="View GraphRAG details"
+                      title="GraphRAG 상세 보기"
                     >
                       <svg
                         className="w-4 h-4"
@@ -173,7 +173,7 @@ export default function DocumentList({
                       onClick={() => setDeleteTarget(doc)}
                       disabled={doc.status === 'processing'}
                       className="p-1 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Delete document"
+                      title="문서 삭제"
                     >
                       <svg
                         className="w-4 h-4"
@@ -200,9 +200,9 @@ export default function DocumentList({
       {/* Delete Confirmation */}
       <ConfirmDialog
         isOpen={!!deleteTarget}
-        title="Delete Document"
-        message={`Are you sure you want to delete "${deleteTarget?.filename}"? This will remove all associated vectors and graph data. This action cannot be undone.`}
-        confirmLabel="Delete"
+        title="문서 삭제"
+        message={`"${deleteTarget?.filename}"을(를) 삭제하시겠습니까? 연결된 모든 벡터와 그래프 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.`}
+        confirmLabel="삭제"
         variant="danger"
         isLoading={deleteMutation.isPending}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}

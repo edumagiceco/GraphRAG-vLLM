@@ -25,7 +25,7 @@ export default function Login() {
 
     // Basic validation
     if (!email || !password) {
-      setLocalError('Please enter email and password')
+      setLocalError('이메일과 비밀번호를 입력해주세요')
       return
     }
 
@@ -47,7 +47,7 @@ export default function Login() {
             GraphRAG Chatbot
           </h1>
           <h2 className="mt-2 text-center text-xl text-gray-600">
-            Admin Login
+            관리자 로그인
           </h2>
         </div>
 
@@ -67,7 +67,7 @@ export default function Login() {
                 htmlFor="email"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Email
+                이메일
               </label>
               <input
                 id="email"
@@ -89,7 +89,7 @@ export default function Login() {
                 htmlFor="password"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Password
+                비밀번호
               </label>
               <input
                 id="password"
@@ -100,7 +100,7 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="input"
-                placeholder="Enter your password"
+                placeholder="비밀번호를 입력하세요"
                 disabled={isLoading}
               />
             </div>
@@ -132,10 +132,10 @@ export default function Login() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     />
                   </svg>
-                  Signing in...
+                  로그인 중...
                 </span>
               ) : (
-                'Sign in'
+                '로그인'
               )}
             </button>
           </div>

@@ -64,10 +64,10 @@ export default class ErrorBoundary extends Component<Props, State> {
               </svg>
             </div>
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              Something went wrong
+              문제가 발생했습니다
             </h2>
             <p className="text-gray-600 mb-4">
-              An unexpected error occurred. Please try again.
+              예기치 않은 오류가 발생했습니다. 다시 시도해주세요.
             </p>
             {this.state.error && (
               <div className="bg-gray-100 rounded-lg p-3 mb-4 text-left">
@@ -78,10 +78,10 @@ export default class ErrorBoundary extends Component<Props, State> {
             )}
             <div className="flex gap-3 justify-center">
               <Button variant="secondary" onClick={this.handleReset}>
-                Try Again
+                다시 시도
               </Button>
               <Button variant="primary" onClick={this.handleReload}>
-                Reload Page
+                페이지 새로고침
               </Button>
             </div>
           </div>

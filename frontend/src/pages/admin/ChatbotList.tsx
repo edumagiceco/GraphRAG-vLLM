@@ -30,7 +30,7 @@ function ChatbotCard({
         <div className="flex-1 min-w-0">
           <h3 className="text-lg font-semibold text-gray-900 truncate">{chatbot.name}</h3>
           <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-            {chatbot.description || 'No description'}
+            {chatbot.description || '설명 없음'}
           </p>
         </div>
         <StatusBadge status={mapChatbotStatus(chatbot.status)} />
@@ -38,11 +38,11 @@ function ChatbotCard({
 
       <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
         <div>
-          <span className="text-gray-500">Documents:</span>
+          <span className="text-gray-500">문서:</span>
           <span className="ml-2 font-medium">{chatbot.document_count}</span>
         </div>
         <div>
-          <span className="text-gray-500">Created:</span>
+          <span className="text-gray-500">생성일:</span>
           <span className="ml-2 font-medium">
             {new Date(chatbot.created_at).toLocaleDateString()}
           </span>
@@ -61,7 +61,7 @@ function ChatbotCard({
             className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
               chatbot.status === 'active' ? 'bg-primary-600' : 'bg-gray-200'
             }`}
-            title={chatbot.status === 'active' ? 'Deactivate' : 'Activate'}
+            title={chatbot.status === 'active' ? '비활성화' : '활성화'}
           >
             <span
               className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
@@ -77,7 +77,7 @@ function ChatbotCard({
               target="_blank"
               rel="noopener noreferrer"
               className="p-1.5 text-gray-400 hover:text-primary-600 transition-colors"
-              title="Open Chat"
+              title="채팅 열기"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -94,7 +94,7 @@ function ChatbotCard({
           <Link
             to={`/admin/chatbots/${chatbot.id}/stats`}
             className="p-1.5 text-gray-400 hover:text-primary-600 transition-colors"
-            title="View Statistics"
+            title="통계 보기"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -110,7 +110,7 @@ function ChatbotCard({
           <Link
             to={`/admin/chatbots/${chatbot.id}`}
             className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
-            title="Manage"
+            title="관리"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -133,7 +133,7 @@ function ChatbotCard({
             onClick={onDelete}
             disabled={chatbot.status === 'processing'}
             className="p-1.5 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Delete"
+            title="삭제"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -187,9 +187,9 @@ export default function ChatbotList() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Chatbots</h1>
+          <h1 className="text-2xl font-bold text-gray-900">챗봇</h1>
           <p className="text-gray-600 mt-1">
-            Manage your GraphRAG chatbot services
+            GraphRAG 챗봇 서비스를 관리하세요
           </p>
         </div>
         <Link to="/admin/chatbots/new">
@@ -200,7 +200,7 @@ export default function ChatbotList() {
               </svg>
             }
           >
-            Create Chatbot
+            챗봇 생성
           </Button>
         </Link>
       </div>
@@ -215,7 +215,7 @@ export default function ChatbotList() {
       {/* Error state */}
       {error && (
         <div className="card bg-red-50 border-red-200">
-          <p className="text-red-700">Failed to load chatbots. Please try again.</p>
+          <p className="text-red-700">챗봇을 불러오는데 실패했습니다. 다시 시도해주세요.</p>
         </div>
       )}
 
@@ -235,13 +235,13 @@ export default function ChatbotList() {
               d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
             />
           </svg>
-          <h3 className="mt-4 text-lg font-medium text-gray-900">No chatbots yet</h3>
+          <h3 className="mt-4 text-lg font-medium text-gray-900">아직 챗봇이 없습니다</h3>
           <p className="mt-2 text-gray-500">
-            Get started by creating your first chatbot.
+            첫 번째 챗봇을 생성해보세요.
           </p>
           <div className="mt-6">
             <Link to="/admin/chatbots/new">
-              <Button>Create Chatbot</Button>
+              <Button>챗봇 생성</Button>
             </Link>
           </div>
         </div>
@@ -266,8 +266,7 @@ export default function ChatbotList() {
           {data.total > pageSize && (
             <div className="flex items-center justify-between mt-6">
               <p className="text-sm text-gray-500">
-                Showing {(page - 1) * pageSize + 1} to{' '}
-                {Math.min(page * pageSize, data.total)} of {data.total} chatbots
+                {data.total}개 중 {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, data.total)} 표시 중
               </p>
               <div className="flex gap-2">
                 <Button
@@ -276,7 +275,7 @@ export default function ChatbotList() {
                   disabled={page === 1}
                   onClick={() => setPage(page - 1)}
                 >
-                  Previous
+                  이전
                 </Button>
                 <Button
                   variant="secondary"
@@ -284,7 +283,7 @@ export default function ChatbotList() {
                   disabled={page * pageSize >= data.total}
                   onClick={() => setPage(page + 1)}
                 >
-                  Next
+                  다음
                 </Button>
               </div>
             </div>
@@ -295,9 +294,9 @@ export default function ChatbotList() {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={!!deleteTarget}
-        title="Delete Chatbot"
-        message={`Are you sure you want to delete "${deleteTarget?.name}"? This will permanently remove all associated documents, conversations, and data. This action cannot be undone.`}
-        confirmLabel="Delete"
+        title="챗봇 삭제"
+        message={`"${deleteTarget?.name}"을(를) 삭제하시겠습니까? 연결된 모든 문서, 대화, 데이터가 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.`}
+        confirmLabel="삭제"
         variant="danger"
         isLoading={deleteMutation.isPending}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}

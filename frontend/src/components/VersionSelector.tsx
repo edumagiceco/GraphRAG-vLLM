@@ -23,15 +23,15 @@ const statusColors = {
 }
 
 const statusLabels = {
-  building: 'Building',
-  ready: 'Ready',
-  active: 'Active',
-  archived: 'Archived',
+  building: '빌드 중',
+  ready: '준비됨',
+  active: '활성',
+  archived: '보관됨',
 }
 
 function formatDate(dateString: string | null): string {
   if (!dateString) return '-'
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -82,9 +82,9 @@ export default function VersionSelector({
             d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
           />
         </svg>
-        <p className="mt-2">No versions yet.</p>
+        <p className="mt-2">아직 버전이 없습니다.</p>
         <p className="text-sm">
-          Versions will be created when documents are processed.
+          문서가 처리되면 버전이 생성됩니다.
         </p>
       </div>
     )
@@ -117,9 +117,9 @@ export default function VersionSelector({
                   </span>
                 </div>
                 <div className="text-xs text-gray-500 mt-0.5">
-                  Created: {formatDate(version.created_at)}
+                  생성일: {formatDate(version.created_at)}
                   {version.activated_at && (
-                    <> | Activated: {formatDate(version.activated_at)}</>
+                    <> | 활성화일: {formatDate(version.activated_at)}</>
                   )}
                 </div>
               </div>
@@ -131,20 +131,20 @@ export default function VersionSelector({
                 size="sm"
                 onClick={() => setActivateTarget(version)}
               >
-                Activate
+                활성화
               </Button>
             )}
 
             {version.status === 'active' && (
               <span className="text-sm text-green-600 font-medium">
-                Currently Active
+                현재 활성
               </span>
             )}
 
             {version.status === 'building' && (
               <div className="flex items-center gap-2 text-sm text-yellow-600">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600" />
-                Building...
+                빌드 중...
               </div>
             )}
           </div>
@@ -154,9 +154,9 @@ export default function VersionSelector({
       {/* Activate Confirmation */}
       <ConfirmDialog
         isOpen={!!activateTarget}
-        title="Activate Version"
-        message={`Are you sure you want to activate version ${activateTarget?.version}? This will make it the active knowledge base for your chatbot. The current active version will be archived.`}
-        confirmLabel="Activate"
+        title="버전 활성화"
+        message={`버전 ${activateTarget?.version}을(를) 활성화하시겠습니까? 이 버전이 챗봇의 활성 지식 베이스가 됩니다. 현재 활성 버전은 보관됩니다.`}
+        confirmLabel="활성화"
         variant="info"
         isLoading={activateMutation.isPending}
         onConfirm={() => activateTarget && activateMutation.mutate(activateTarget.version)}

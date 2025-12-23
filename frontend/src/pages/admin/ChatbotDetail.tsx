@@ -113,13 +113,13 @@ export default function ChatbotDetail() {
     return (
       <Layout>
         <div className="card text-center py-12">
-          <h2 className="text-xl font-semibold text-gray-900">Chatbot not found</h2>
+          <h2 className="text-xl font-semibold text-gray-900">챗봇을 찾을 수 없습니다</h2>
           <Button
             variant="secondary"
             className="mt-4"
             onClick={() => navigate('/admin/chatbots')}
           >
-            Back to Chatbots
+            챗봇 목록으로
           </Button>
         </div>
       </Layout>
@@ -134,7 +134,7 @@ export default function ChatbotDetail() {
       <div className="mb-6">
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
           <Link to="/admin/chatbots" className="hover:text-gray-700">
-            Chatbots
+            챗봇
           </Link>
           <span>/</span>
           <span>{chatbot.name}</span>
@@ -144,7 +144,7 @@ export default function ChatbotDetail() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{chatbot.name}</h1>
               <p className="text-gray-600 mt-1">
-                {chatbot.description || 'No description'}
+                {chatbot.description || '설명 없음'}
               </p>
             </div>
             <StatusBadge status={mapChatbotStatus(chatbot.status)} />
@@ -155,7 +155,7 @@ export default function ChatbotDetail() {
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-                Stats
+                통계
               </Button>
             </Link>
             <Button
@@ -163,13 +163,13 @@ export default function ChatbotDetail() {
               onClick={handleToggleStatus}
               isLoading={statusMutation.isPending}
             >
-              {chatbot.status === 'active' ? 'Deactivate' : 'Activate'}
+              {chatbot.status === 'active' ? '비활성화' : '활성화'}
             </Button>
             <Button
               variant="danger"
               onClick={() => setShowDeleteConfirm(true)}
             >
-              Delete
+              삭제
             </Button>
           </div>
         </div>
@@ -181,7 +181,7 @@ export default function ChatbotDetail() {
           {/* Upload section */}
           <div className="card">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Upload Documents
+              문서 업로드
             </h2>
             <FileUpload
               onUpload={handleUpload}
@@ -198,7 +198,7 @@ export default function ChatbotDetail() {
           {progressDocs.length > 0 && (
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Processing
+                처리 중
               </h2>
               <div className="space-y-4">
                 {progressDocs.map((doc) => (
@@ -227,7 +227,7 @@ export default function ChatbotDetail() {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Documents ({documentsData?.total || 0})
+                  문서 ({documentsData?.total || 0})
                 </button>
                 <button
                   onClick={() => setActiveTab('versions')}
@@ -237,7 +237,7 @@ export default function ChatbotDetail() {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Versions ({versionsData?.total || 0})
+                  버전 ({versionsData?.total || 0})
                 </button>
               </nav>
             </div>
@@ -266,31 +266,31 @@ export default function ChatbotDetail() {
           {/* Info card */}
           <div className="card">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Chatbot Info
+              챗봇 정보
             </h3>
             <dl className="space-y-3 text-sm">
               <div>
-                <dt className="text-gray-500">Status</dt>
+                <dt className="text-gray-500">상태</dt>
                 <dd className="mt-1">
                   <StatusBadge status={mapChatbotStatus(chatbot.status)} size="sm" />
                 </dd>
               </div>
               <div>
-                <dt className="text-gray-500">Access URL</dt>
+                <dt className="text-gray-500">접근 URL</dt>
                 <dd className="mt-1 font-mono text-xs break-all">
                   {chatUrl}
                 </dd>
               </div>
               <div>
-                <dt className="text-gray-500">Documents</dt>
+                <dt className="text-gray-500">문서</dt>
                 <dd className="mt-1 font-medium">{chatbot.document_count}</dd>
               </div>
               <div>
-                <dt className="text-gray-500">Active Version</dt>
+                <dt className="text-gray-500">활성 버전</dt>
                 <dd className="mt-1 font-medium">v{chatbot.active_version || 1}</dd>
               </div>
               <div>
-                <dt className="text-gray-500">Created</dt>
+                <dt className="text-gray-500">생성일</dt>
                 <dd className="mt-1">
                   {new Date(chatbot.created_at).toLocaleDateString()}
                 </dd>
@@ -303,7 +303,7 @@ export default function ChatbotDetail() {
                 rel="noopener noreferrer"
                 className="mt-4 block w-full btn-primary text-center"
               >
-                Open Chat
+                채팅 열기
               </a>
             )}
           </div>
@@ -311,21 +311,21 @@ export default function ChatbotDetail() {
           {/* Persona card */}
           <div className="card">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Persona
+              페르소나
             </h3>
             <dl className="space-y-3 text-sm">
               <div>
-                <dt className="text-gray-500">Name</dt>
+                <dt className="text-gray-500">이름</dt>
                 <dd className="mt-1 font-medium">{chatbot.persona.name}</dd>
               </div>
               <div>
-                <dt className="text-gray-500">Description</dt>
+                <dt className="text-gray-500">설명</dt>
                 <dd className="mt-1 text-gray-700">
                   {chatbot.persona.description}
                 </dd>
               </div>
               <div>
-                <dt className="text-gray-500">Greeting</dt>
+                <dt className="text-gray-500">인사말</dt>
                 <dd className="mt-1 text-gray-700 italic">
                   "{chatbot.persona.greeting}"
                 </dd>
@@ -338,9 +338,9 @@ export default function ChatbotDetail() {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={showDeleteConfirm}
-        title="Delete Chatbot"
-        message={`Are you sure you want to delete "${chatbot.name}"? This will permanently remove all documents, vectors, and knowledge graph data. This action cannot be undone.`}
-        confirmLabel="Delete"
+        title="챗봇 삭제"
+        message={`"${chatbot.name}"을(를) 삭제하시겠습니까? 모든 문서, 벡터, 지식 그래프 데이터가 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.`}
+        confirmLabel="삭제"
         variant="danger"
         isLoading={deleteMutation.isPending}
         onConfirm={() => deleteMutation.mutate()}
