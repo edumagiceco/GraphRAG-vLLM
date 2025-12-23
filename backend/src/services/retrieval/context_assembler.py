@@ -2,8 +2,18 @@
 Context assembler for combining retrieval results.
 Prioritizes and deduplicates context from vector and graph sources.
 """
-from typing import Optional
+from typing import Optional, Any
 from dataclasses import dataclass
+
+
+def sanitize_text(text: str) -> str:
+    """
+    Sanitize text for PostgreSQL storage.
+    Removes null characters which are not supported in PostgreSQL JSONB.
+    """
+    if not text:
+        return text
+    return text.replace('\x00', '').replace('\u0000', '')
 
 
 @dataclass
@@ -64,12 +74,13 @@ class ContextAssembler:
 
         # Process vector results
         for result in vector_results:
+            text = result.get("text", "")
             items.append(ContextItem(
-                text=result.get("text", ""),
+                text=sanitize_text(text),
                 source="vector",
                 score=result.get("score", 0) * self.vector_weight,
                 document_id=result.get("document_id"),
-                filename=result.get("filename"),
+                filename=sanitize_text(result.get("filename", "")),
                 page_num=result.get("page_num"),
             ))
 
@@ -82,12 +93,12 @@ class ContextAssembler:
                 base_score = 1.0 / (distance + 1)  # Closer = higher score
 
                 items.append(ContextItem(
-                    text=description,
+                    text=sanitize_text(description),
                     source="graph",
                     score=base_score * self.graph_weight,
                     document_id=result.get("document_id"),
-                    entity_name=result.get("name"),
-                    entity_type=result.get("type"),
+                    entity_name=sanitize_text(result.get("name", "")),
+                    entity_type=sanitize_text(result.get("type", "")),
                     relationship=", ".join(result.get("relationships", [])),
                 ))
 
@@ -169,6 +180,12 @@ class ContextAssembler:
             citation["entity_type"] = item.entity_type
         if item.relationship:
             citation["relationship"] = item.relationship
+
+        # Include chunk text preview for source display
+        if item.text:
+            # Sanitize and truncate to 200 characters for preview
+            sanitized = sanitize_text(item.text)
+            citation["chunk_text"] = sanitized[:200] + "..." if len(sanitized) > 200 else sanitized
 
         return citation
 

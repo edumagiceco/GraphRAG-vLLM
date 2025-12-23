@@ -5,7 +5,9 @@ import re
 import json
 from typing import Optional
 
-from src.core.llm import get_llm
+import requests
+
+from src.core.config import settings
 
 
 class EntityExtractor:
@@ -40,7 +42,8 @@ class EntityExtractor:
             use_llm: Whether to use LLM for extraction
         """
         self.use_llm = use_llm
-        self._llm = get_llm() if use_llm else None
+        self._ollama_url = f"{settings.ollama_base_url}/api/chat"
+        self._model = settings.ollama_model
 
     def extract_with_rules(self, text: str) -> list[dict]:
         """
@@ -81,7 +84,7 @@ class EntityExtractor:
 
     def extract_with_llm(self, text: str, max_length: int = 3000) -> list[dict]:
         """
-        Extract entities using LLM.
+        Extract entities using LLM via direct HTTP call to Ollama.
 
         Args:
             text: Input text
@@ -90,7 +93,7 @@ class EntityExtractor:
         Returns:
             List of extracted entities
         """
-        if not self._llm:
+        if not self.use_llm:
             return []
 
         # Truncate text if too long
@@ -118,14 +121,28 @@ Rules:
 - Do NOT include any text before or after the JSON array"""
 
         try:
-            # Use sync version for Celery compatibility (avoids event loop issues)
-            response = self._llm.generate_sync(
-                user_message=f"Extract entities from:\n\n{text}",
-                system_prompt=system_prompt,
+            # Direct HTTP call to Ollama API (avoids event loop issues in Celery)
+            payload = {
+                "model": self._model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Extract entities from:\n\n{text}"},
+                ],
+                "stream": False,
+            }
+
+            response = requests.post(
+                self._ollama_url,
+                json=payload,
+                timeout=120,
             )
+            response.raise_for_status()
+
+            result = response.json()
+            response_text = result.get("message", {}).get("content", "")
 
             # Parse JSON from response - handle multiple JSON arrays
-            entities = self._parse_json_array(response)
+            entities = self._parse_json_array(response_text)
 
             # Validate and clean entities
             valid_entities = []

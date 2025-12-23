@@ -65,8 +65,9 @@ function createApiClient(): AxiosInstance {
   client.interceptors.response.use(
     (response) => response,
     (error: AxiosError) => {
-      if (error.response?.status === 401) {
-        // Token expired or invalid
+      // Handle both 401 (Unauthorized) and 403 (Forbidden/Not authenticated)
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        // Token expired, invalid, or missing
         removeAccessToken()
         // Redirect to login if not already there
         if (window.location.pathname !== '/login') {

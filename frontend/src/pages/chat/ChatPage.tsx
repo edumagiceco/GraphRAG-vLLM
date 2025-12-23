@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 
-import ChatMessage, { LoadingMessage } from '@/components/ChatMessage'
+import ChatMessage, { LoadingMessage, ThinkingMessage } from '@/components/ChatMessage'
 import ChatInput from '@/components/ChatInput'
 import { useSSE } from '@/hooks/useSSE'
 import {
@@ -30,6 +30,7 @@ export default function ChatPage() {
     streamedContent,
     sources,
     error: streamError,
+    thinkingStatus,
     startStream,
     stopStream,
   } = useSSE({
@@ -78,7 +79,7 @@ export default function ChatPage() {
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamedContent, pendingUserMessage])
+  }, [messages, streamedContent, pendingUserMessage, thinkingStatus])
 
   const handleSend = async (content: string) => {
     if (!sessionId || !accessUrl) return
@@ -172,6 +173,16 @@ export default function ChatPage() {
             />
           ))}
 
+          {/* Thinking/Reasoning indicator */}
+          {thinkingStatus && thinkingStatus.isThinking && (
+            <ThinkingMessage
+              personaName={chatbotInfo.persona_name}
+              stage={thinkingStatus.stage}
+              message={thinkingStatus.message}
+              sourceCount={thinkingStatus.sourceCount}
+            />
+          )}
+
           {/* Streaming response */}
           {isStreaming && streamedContent && (
             <ChatMessage
@@ -183,8 +194,8 @@ export default function ChatPage() {
             />
           )}
 
-          {/* Loading indicator */}
-          {pendingUserMessage && !streamedContent && isStreaming && (
+          {/* Loading indicator (fallback) */}
+          {pendingUserMessage && !streamedContent && isStreaming && !thinkingStatus && (
             <LoadingMessage personaName={chatbotInfo.persona_name} />
           )}
 

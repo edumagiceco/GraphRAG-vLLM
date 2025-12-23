@@ -203,7 +203,11 @@ async def send_message(
                 ):
                     chunk_type = chunk.get("type")
 
-                    if chunk_type == "content":
+                    if chunk_type == "thinking_status":
+                        # Send processing status updates (검색 중, 생성 중 등)
+                        yield f"data: {json.dumps(chunk)}\n\n"
+
+                    elif chunk_type == "content":
                         full_response += chunk.get("content", "")
                         yield f"data: {json.dumps(chunk)}\n\n"
 

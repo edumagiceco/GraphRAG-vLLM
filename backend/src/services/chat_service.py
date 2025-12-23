@@ -1,9 +1,11 @@
 """
 Chat service for managing conversations.
 """
+import asyncio
+import re
 import uuid
 from datetime import datetime
-from typing import AsyncIterator, Optional
+from typing import AsyncIterator, Optional, Any
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +14,68 @@ from src.models.chatbot_service import ChatbotService, ChatbotStatus
 from src.models.conversation import ConversationSession, Message, MessageRole
 from src.services.retrieval.hybrid_retriever import retrieve_context
 from src.services.llm.answer_generator import get_answer_generator
+
+
+def clean_llm_response(text: str) -> str:
+    """
+    Clean LLM response by removing thinking/reasoning content.
+
+    Removes:
+    - <think>...</think> tags and their content
+    - Content before </think> (thinking without opening tag)
+    - Any remaining tags
+
+    Args:
+        text: Raw LLM response text
+
+    Returns:
+        Cleaned text with only the answer
+    """
+    if not text:
+        return text
+
+    # If there's a </think> tag, take only the content after it
+    # This handles cases where model outputs thinking without <think> opening tag
+    think_end_match = re.search(r'</think>\s*', text, flags=re.IGNORECASE)
+    if think_end_match:
+        text = text[think_end_match.end():]
+
+    # Remove <think>...</think> blocks (including multiline)
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL | re.IGNORECASE)
+
+    # Remove any remaining tags
+    text = re.sub(r'</?think>\s*', '', text, flags=re.IGNORECASE)
+
+    return text.strip()
+
+
+def sanitize_for_postgres(data: Any) -> Any:
+    """
+    Sanitize data for PostgreSQL JSONB storage.
+    Removes null characters (\u0000) which are not supported in PostgreSQL.
+
+    Args:
+        data: Any data structure (dict, list, str, etc.)
+
+    Returns:
+        Sanitized data
+    """
+    if data is None:
+        return None
+
+    if isinstance(data, str):
+        # Remove null characters
+        return data.replace('\x00', '').replace('\u0000', '')
+
+    if isinstance(data, dict):
+        return {k: sanitize_for_postgres(v) for k, v in data.items()}
+
+    if isinstance(data, list):
+        return [sanitize_for_postgres(item) for item in data]
+
+    return data
+
+
 
 
 class ChatService:
@@ -136,12 +200,16 @@ class ChatService:
         Returns:
             Created message
         """
+        # Sanitize content and sources for PostgreSQL (remove null characters)
+        sanitized_content = sanitize_for_postgres(content) if content else content
+        sanitized_sources = sanitize_for_postgres(sources) if sources else sources
+
         message = Message(
             id=str(uuid.uuid4()),
             session_id=session_id,
             role=role,
-            content=content,
-            sources=sources,
+            content=sanitized_content,
+            sources=sanitized_sources,
         )
         db.add(message)
         await db.commit()
@@ -240,8 +308,16 @@ class ChatService:
         Yields:
             Stream chunks with type and content
         """
+        # Send thinking/reasoning start signal
+        yield {"type": "thinking_status", "stage": "history", "message": "대화 기록 분석 중..."}
+        await asyncio.sleep(0.01)  # Ensure flush to client
+
         # Get chat history
         chat_history = await ChatService.get_chat_history(db, session_id)
+
+        # Send retrieval stage
+        yield {"type": "thinking_status", "stage": "retrieval", "message": "관련 문서 검색 중..."}
+        await asyncio.sleep(0.01)  # Ensure flush to client
 
         # Retrieve context
         retrieval_result = await retrieve_context(
@@ -253,11 +329,27 @@ class ChatService:
         context = retrieval_result.get("context", "")
         citations = retrieval_result.get("citations", [])
 
-        # Stream response
+        # Send context found signal
+        if citations:
+            yield {
+                "type": "thinking_status",
+                "stage": "context_found",
+                "message": f"{len(citations)}개의 관련 출처를 찾았습니다.",
+                "source_count": len(citations)
+            }
+            await asyncio.sleep(0.01)  # Ensure flush to client
+
+        # Send generating stage
+        yield {"type": "thinking_status", "stage": "generating", "message": "답변 생성 중..."}
+        await asyncio.sleep(0.01)  # Ensure flush to client
+
+        # Collect full response first, then clean and stream
+        # This ensures thinking content is completely filtered out
         generator = get_answer_generator()
-        full_response = ""
+        raw_response = ""
 
         try:
+            # Collect entire response
             async for chunk in generator.generate_stream(
                 user_message=user_message,
                 context=context,
@@ -265,15 +357,29 @@ class ChatService:
                 citations=citations,
                 chat_history=chat_history,
             ):
-                full_response += chunk
+                raw_response += chunk
+
+            # Clean the response (remove thinking content)
+            cleaned_response = clean_llm_response(raw_response)
+
+            # Stream the cleaned response in chunks for smooth display
+            chunk_size = 10  # Characters per chunk
+            for i in range(0, len(cleaned_response), chunk_size):
+                chunk = cleaned_response[i:i + chunk_size]
                 yield {"type": "content", "content": chunk}
 
-            # Send sources
+            # Send sources with detailed info
             if citations:
-                yield {"type": "sources", "sources": citations}
+                enhanced_citations = []
+                for citation in citations:
+                    enhanced = dict(citation)
+                    if "source" not in enhanced:
+                        enhanced["source"] = "document" if enhanced.get("filename") else "graph"
+                    enhanced_citations.append(enhanced)
+                yield {"type": "sources", "sources": enhanced_citations}
 
-            # Send done signal
-            yield {"type": "done", "content": full_response}
+            # Send done signal with cleaned content
+            yield {"type": "done", "content": cleaned_response}
 
         except Exception as e:
             yield {"type": "error", "error": str(e)}

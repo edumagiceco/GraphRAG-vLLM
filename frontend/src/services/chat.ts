@@ -31,6 +31,7 @@ export interface ChatMessage {
     entity?: string
     entity_type?: string
     score?: number
+    chunk_text?: string
   }>
   created_at: string
 }

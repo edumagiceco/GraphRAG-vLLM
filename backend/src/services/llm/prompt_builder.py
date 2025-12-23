@@ -14,14 +14,24 @@ class PromptBuilder:
     - Source citation instructions
     """
 
-    DEFAULT_SYSTEM_PROMPT = """You are a helpful AI assistant that answers questions based on the provided context.
+    DEFAULT_SYSTEM_PROMPT = """당신은 제공된 컨텍스트를 기반으로 질문에 답변하는 유용한 AI 어시스턴트입니다.
 
-Guidelines:
-1. Only answer based on the provided context
-2. If the context doesn't contain enough information, say so honestly
-3. Cite your sources using [Source: filename, page X] format when possible
-4. Be concise but complete in your answers
-5. Maintain a professional and helpful tone"""
+## 중요 지침
+1. 반드시 제공된 컨텍스트만을 기반으로 답변하세요
+2. 컨텍스트에 충분한 정보가 없으면 솔직하게 말씀해주세요
+3. **답변은 반드시 100% 한국어로만 작성하세요. 일본어, 중국어, 영어 등 다른 언어를 절대 사용하지 마세요.**
+4. 간결하지만 완전한 답변을 제공하세요
+5. 전문적이고 친절한 톤을 유지하세요
+6. 목록이나 번호를 사용하여 정보를 명확하게 정리하세요
+
+## 응답 형식
+- 추론 과정이나 생각은 출력하지 마세요. <think> 태그를 사용하지 마세요.
+- 최종 답변만 직접 출력하세요
+- 반드시 한국어로만 답변하세요 (일본어 금지, 영어 금지)
+
+## 출처 인용
+- 답변 마지막에 참고한 출처를 명시하세요
+- 형식: [출처: 파일명] 또는 [출처: 엔티티명]"""
 
     DEFAULT_GREETING = "안녕하세요! 무엇을 도와드릴까요?"
 
@@ -59,11 +69,11 @@ Guidelines:
             base_prompt = self.DEFAULT_SYSTEM_PROMPT
 
         if self.persona_name or self.persona_description:
-            persona_section = "\n\nYour persona:"
+            persona_section = "\n\n## 페르소나"
             if self.persona_name:
-                persona_section += f"\nName: {self.persona_name}"
+                persona_section += f"\n이름: {self.persona_name}"
             if self.persona_description:
-                persona_section += f"\nDescription: {self.persona_description}"
+                persona_section += f"\n설명: {self.persona_description}"
             return base_prompt + persona_section
 
         return base_prompt
@@ -84,26 +94,31 @@ Guidelines:
             Formatted context section
         """
         if not context:
-            return "No relevant context found for this question."
+            return "이 질문에 대한 관련 컨텍스트를 찾을 수 없습니다."
 
-        context_prompt = f"""## Retrieved Context
+        context_prompt = f"""## 검색된 컨텍스트
 
 {context}
 
 """
         if citations:
-            context_prompt += "## Available Sources\n"
+            context_prompt += "## 참고 가능한 출처\n"
             for i, citation in enumerate(citations, 1):
                 source_info = []
                 if citation.get("filename"):
-                    source_info.append(citation["filename"])
+                    source_info.append(f"파일: {citation['filename']}")
                 if citation.get("page"):
-                    source_info.append(f"page {citation['page']}")
+                    source_info.append(f"페이지 {citation['page']}")
                 if citation.get("entity"):
-                    source_info.append(f"entity: {citation['entity']}")
+                    entity_type = citation.get("entity_type", "개념")
+                    source_info.append(f"엔티티: {citation['entity']} ({entity_type})")
+                if citation.get("chunk_text"):
+                    # 청크 텍스트 미리보기 추가 (100자 제한)
+                    preview = citation["chunk_text"][:100] + "..." if len(citation.get("chunk_text", "")) > 100 else citation.get("chunk_text", "")
+                    source_info.append(f"내용: {preview}")
 
                 if source_info:
-                    context_prompt += f"[{i}] {', '.join(source_info)}\n"
+                    context_prompt += f"[출처 {i}] {' | '.join(source_info)}\n"
 
         return context_prompt
 
@@ -162,10 +177,15 @@ Guidelines:
         # Combine context with user message
         full_user_message = f"""{context_section}
 
-## User Question
+## 사용자 질문
 {user_message}
 
-Please answer the question based on the context above. If citing sources, use the format [Source: X] where X is the source number."""
+## 답변 지침
+1. 위의 컨텍스트를 기반으로 질문에 답변해주세요
+2. 반드시 한국어로 답변하세요
+3. 답변 마지막에 참고한 출처를 명시하세요
+   - 형식: [출처 1: 파일명, 페이지 X] 또는 [출처 1: 엔티티명]
+4. 컨텍스트에 없는 내용은 추측하지 마세요"""
 
         # Build message list
         messages = history + [{"role": "user", "content": full_user_message}]

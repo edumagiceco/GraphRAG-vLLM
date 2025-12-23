@@ -5,7 +5,9 @@ import re
 import json
 from typing import Optional
 
-from src.core.llm import get_llm
+import requests
+
+from src.core.config import settings
 
 
 class RelationExtractor:
@@ -55,7 +57,8 @@ class RelationExtractor:
             use_llm: Whether to use LLM for extraction
         """
         self.use_llm = use_llm
-        self._llm = get_llm() if use_llm else None
+        self._ollama_url = f"{settings.ollama_base_url}/api/chat"
+        self._model = settings.ollama_model
 
     def extract_with_rules(
         self,
@@ -102,7 +105,7 @@ class RelationExtractor:
         max_length: int = 3000,
     ) -> list[dict]:
         """
-        Extract relationships using LLM.
+        Extract relationships using LLM via direct HTTP call to Ollama.
 
         Args:
             text: Input text
@@ -112,7 +115,7 @@ class RelationExtractor:
         Returns:
             List of relationships
         """
-        if not self._llm or not entities:
+        if not self.use_llm or not entities:
             return []
 
         # Truncate text if too long
@@ -150,14 +153,28 @@ Rules:
 - Do NOT include any text before or after the JSON array"""
 
         try:
-            # Use sync version for Celery compatibility (avoids event loop issues)
-            response = self._llm.generate_sync(
-                user_message=f"Extract relationships from:\n\n{text}",
-                system_prompt=system_prompt,
+            # Direct HTTP call to Ollama API (avoids event loop issues in Celery)
+            payload = {
+                "model": self._model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Extract relationships from:\n\n{text}"},
+                ],
+                "stream": False,
+            }
+
+            response = requests.post(
+                self._ollama_url,
+                json=payload,
+                timeout=120,
             )
+            response.raise_for_status()
+
+            result = response.json()
+            response_text = result.get("message", {}).get("content", "")
 
             # Parse JSON from response - handle malformed responses
-            relationships = self._parse_json_array(response)
+            relationships = self._parse_json_array(response_text)
 
             # Validate relationships
             valid_relationships = []

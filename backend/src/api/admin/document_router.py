@@ -529,19 +529,14 @@ async def get_document_graph_details(
         from qdrant_client.http import models as qdrant_models
 
         client = QdrantManager.get_client()
+        collection_name = "document_chunks"
 
-        # Find collection with version
+        # Check if collection exists
         collections = client.get_collections().collections
-        matching_collections = [
-            c.name for c in collections
-            if c.name.startswith(f"chatbot_{chatbot_id}_v")
-        ]
+        collection_exists = any(c.name == collection_name for c in collections)
 
-        if matching_collections:
-            # Use the latest version collection
-            collection_name = sorted(matching_collections)[-1]
-
-            # Scroll with filter for document_id
+        if collection_exists:
+            # Scroll with filter for document_id and chatbot_id
             scroll_result = client.scroll(
                 collection_name=collection_name,
                 scroll_filter=qdrant_models.Filter(
@@ -549,15 +544,20 @@ async def get_document_graph_details(
                         qdrant_models.FieldCondition(
                             key="document_id",
                             match=qdrant_models.MatchValue(value=document_id),
-                        )
+                        ),
+                        qdrant_models.FieldCondition(
+                            key="chatbot_id",
+                            match=qdrant_models.MatchValue(value=chatbot_id),
+                        ),
                     ]
                 ),
-                limit=50,
+                limit=100,
                 with_payload=True,
                 with_vectors=False,
             )
 
             points = scroll_result[0] if scroll_result else []
+
             chunks = [
                 ChunkInfo(
                     id=str(point.id),

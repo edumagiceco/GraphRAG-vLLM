@@ -3,8 +3,15 @@
  */
 import { useState, useCallback, useRef } from 'react'
 
+interface ThinkingStatus {
+  isThinking: boolean
+  stage: string
+  message: string
+  sourceCount?: number
+}
+
 interface SSEChunk {
-  type: 'content' | 'sources' | 'done' | 'error'
+  type: 'content' | 'sources' | 'done' | 'error' | 'thinking_status'
   content?: string
   sources?: Array<{
     source: string
@@ -13,9 +20,13 @@ interface SSEChunk {
     entity?: string
     entity_type?: string
     score?: number
+    chunk_text?: string
   }>
   message_id?: string
   error?: string
+  stage?: string
+  message?: string
+  source_count?: number
 }
 
 interface UseSSEOptions {
@@ -23,6 +34,7 @@ interface UseSSEOptions {
   onSources?: (sources: SSEChunk['sources']) => void
   onDone?: (messageId: string | undefined, content: string, sources: SSEChunk['sources']) => void
   onError?: (error: string) => void
+  onThinkingStatus?: (status: ThinkingStatus) => void
 }
 
 interface UseSSEReturn {
@@ -30,6 +42,7 @@ interface UseSSEReturn {
   streamedContent: string
   sources: SSEChunk['sources']
   error: string | null
+  thinkingStatus: ThinkingStatus | null
   startStream: (url: string, body: object) => Promise<void>
   stopStream: () => void
 }
@@ -39,6 +52,7 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
   const [streamedContent, setStreamedContent] = useState('')
   const [sources, setSources] = useState<SSEChunk['sources']>()
   const [error, setError] = useState<string | null>(null)
+  const [thinkingStatus, setThinkingStatus] = useState<ThinkingStatus | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
   const stopStream = useCallback(() => {
@@ -47,6 +61,7 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
       abortControllerRef.current = null
     }
     setIsStreaming(false)
+    setThinkingStatus(null)
   }, [])
 
   const startStream = useCallback(async (url: string, body: object) => {
@@ -54,6 +69,7 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
     setStreamedContent('')
     setSources(undefined)
     setError(null)
+    setThinkingStatus(null)
     setIsStreaming(true)
 
     // Create abort controller
@@ -106,7 +122,22 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
               const chunk: SSEChunk = JSON.parse(data)
 
               switch (chunk.type) {
+                case 'thinking_status':
+                  console.log('[SSE] Received thinking_status:', chunk)
+                  const status: ThinkingStatus = {
+                    isThinking: true,
+                    stage: chunk.stage || '',
+                    message: chunk.message || '',
+                    sourceCount: chunk.source_count,
+                  }
+                  setThinkingStatus(status)
+                  options.onThinkingStatus?.(status)
+                  break
+
                 case 'content':
+                  // Clear thinking status when content starts
+                  console.log('[SSE] Received content chunk, clearing thinking status')
+                  setThinkingStatus(null)
                   if (chunk.content) {
                     fullContent += chunk.content
                     setStreamedContent(fullContent)
@@ -122,12 +153,14 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
 
                 case 'done':
                   setIsStreaming(false)
+                  setThinkingStatus(null)
                   options.onDone?.(chunk.message_id, fullContent, localSources)
                   break
 
                 case 'error':
                   setError(chunk.error || 'Unknown error')
                   setIsStreaming(false)
+                  setThinkingStatus(null)
                   options.onError?.(chunk.error || 'Unknown error')
                   break
               }
@@ -157,7 +190,10 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
     streamedContent,
     sources,
     error,
+    thinkingStatus,
     startStream,
     stopStream,
   }
 }
+
+export type { ThinkingStatus }
