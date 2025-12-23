@@ -1,0 +1,877 @@
+openapi: 3.1.0
+info:
+  title: GraphRAG Chatbot Platform API
+  description: PDF 기반 GraphRAG 챗봇 플랫폼 API
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+
+tags:
+  - name: Auth
+    description: 인증 관련 API
+  - name: Chatbots
+    description: 챗봇 서비스 관리 API
+  - name: Documents
+    description: 문서 관리 API
+  - name: Chat
+    description: 챗봇 대화 API
+  - name: Stats
+    description: 통계 API
+
+paths:
+  # ============ Auth ============
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: 관리자 로그인
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 로그인 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: 현재 사용자 정보 조회
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 사용자 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============ Chatbots ============
+  /chatbots:
+    get:
+      tags: [Chatbots]
+      summary: 챗봇 목록 조회
+      operationId: listChatbots
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ChatbotStatus'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: 챗봇 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatbotListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Chatbots]
+      summary: 챗봇 생성
+      operationId: createChatbot
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChatbotRequest'
+      responses:
+        '201':
+          description: 챗봇 생성 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chatbot'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /chatbots/{chatbotId}:
+    get:
+      tags: [Chatbots]
+      summary: 챗봇 상세 조회
+      operationId: getChatbot
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/chatbotId'
+      responses:
+        '200':
+          description: 챗봇 상세 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatbotDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Chatbots]
+      summary: 챗봇 수정
+      operationId: updateChatbot
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/chatbotId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateChatbotRequest'
+      responses:
+        '200':
+          description: 수정 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chatbot'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Chatbots]
+      summary: 챗봇 삭제
+      operationId: deleteChatbot
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/chatbotId'
+      responses:
+        '204':
+          description: 삭제 완료
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /chatbots/{chatbotId}/status:
+    patch:
+      tags: [Chatbots]
+      summary: 챗봇 상태 변경 (활성화/비활성화)
+      operationId: updateChatbotStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/chatbotId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [active, inactive]
+      responses:
+        '200':
+          description: 상태 변경 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chatbot'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============ Documents ============
+  /chatbots/{chatbotId}/documents:
+    get:
+      tags: [Documents]
+      summary: 문서 목록 조회
+      operationId: listDocuments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/chatbotId'
+      responses:
+        '200':
+          description: 문서 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Document'
+
+    post:
+      tags: [Documents]
+      summary: PDF 문서 업로드
+      operationId: uploadDocument
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/chatbotId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF 파일 (최대 100MB)
+      responses:
+        '202':
+          description: 업로드 완료, 처리 시작
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '400':
+          description: 잘못된 파일 형식
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: 파일 크기 초과
+
+  /chatbots/{chatbotId}/documents/{documentId}:
+    get:
+      tags: [Documents]
+      summary: 문서 상세 조회
+      operationId: getDocument
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/chatbotId'
+        - $ref: '#/components/parameters/documentId'
+      responses:
+        '200':
+          description: 문서 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Documents]
+      summary: 문서 삭제
+      operationId: deleteDocument
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/chatbotId'
+        - $ref: '#/components/parameters/documentId'
+      responses:
+        '204':
+          description: 삭제 완료
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /chatbots/{chatbotId}/documents/{documentId}/progress:
+    get:
+      tags: [Documents]
+      summary: 문서 처리 진행률 조회
+      operationId: getDocumentProgress
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/chatbotId'
+        - $ref: '#/components/parameters/documentId'
+      responses:
+        '200':
+          description: 처리 진행률
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentProgress'
+
+  # ============ Index Versions ============
+  /chatbots/{chatbotId}/versions:
+    get:
+      tags: [Chatbots]
+      summary: 인덱스 버전 목록 조회
+      operationId: listIndexVersions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/chatbotId'
+      responses:
+        '200':
+          description: 버전 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IndexVersion'
+
+  /chatbots/{chatbotId}/versions/{version}/activate:
+    post:
+      tags: [Chatbots]
+      summary: 특정 버전 활성화
+      operationId: activateVersion
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/chatbotId'
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 활성화 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndexVersion'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============ Chat (Public) ============
+  /chat/{accessUrl}:
+    get:
+      tags: [Chat]
+      summary: 챗봇 정보 조회 (공개)
+      operationId: getChatbotPublic
+      parameters:
+        - name: accessUrl
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 챗봇 공개 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatbotPublic'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /chat/{accessUrl}/sessions:
+    post:
+      tags: [Chat]
+      summary: 대화 세션 생성
+      operationId: createSession
+      parameters:
+        - name: accessUrl
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: 세션 생성 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /chat/{accessUrl}/sessions/{sessionId}/messages:
+    get:
+      tags: [Chat]
+      summary: 대화 히스토리 조회
+      operationId: getMessages
+      parameters:
+        - name: accessUrl
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/sessionId'
+      responses:
+        '200':
+          description: 메시지 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+
+    post:
+      tags: [Chat]
+      summary: 질문 전송 (스트리밍 응답)
+      operationId: sendMessage
+      parameters:
+        - name: accessUrl
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/sessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '200':
+          description: SSE 스트리밍 응답
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  SSE 이벤트 스트림:
+                  - event: token, data: "토큰 텍스트"
+                  - event: sources, data: JSON 출처 배열
+                  - event: done, data: ""
+                  - event: error, data: "오류 메시지"
+
+  /chat/{accessUrl}/sessions/{sessionId}/stop:
+    post:
+      tags: [Chat]
+      summary: 응답 생성 중단
+      operationId: stopGeneration
+      parameters:
+        - name: accessUrl
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/sessionId'
+      responses:
+        '200':
+          description: 중단 완료
+
+  # ============ Stats ============
+  /chatbots/{chatbotId}/stats:
+    get:
+      tags: [Stats]
+      summary: 챗봇 통계 조회
+      operationId: getChatbotStats
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/chatbotId'
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 통계 데이터
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatbotStatsResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    chatbotId:
+      name: chatbotId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    documentId:
+      name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    sessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: 잘못된 요청
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: 인증 필요
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: 리소스를 찾을 수 없음
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    # ---- Auth ----
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          default: bearer
+        expires_in:
+          type: integer
+          description: 토큰 만료 시간 (초)
+
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        created_at:
+          type: string
+          format: date-time
+
+    # ---- Chatbot ----
+    ChatbotStatus:
+      type: string
+      enum: [active, inactive, processing]
+
+    Persona:
+      type: object
+      properties:
+        tone:
+          type: string
+          enum: [professional, friendly, formal, casual]
+          default: professional
+        language:
+          type: string
+          enum: [ko, en]
+          default: ko
+        greeting:
+          type: string
+          maxLength: 500
+        fallback_message:
+          type: string
+          maxLength: 500
+
+    CreateChatbotRequest:
+      type: object
+      required: [name, access_url]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+        access_url:
+          type: string
+          pattern: '^[a-z0-9-]{3,50}$'
+        persona:
+          $ref: '#/components/schemas/Persona'
+
+    UpdateChatbotRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+        persona:
+          $ref: '#/components/schemas/Persona'
+
+    Chatbot:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        persona:
+          $ref: '#/components/schemas/Persona'
+        status:
+          $ref: '#/components/schemas/ChatbotStatus'
+        access_url:
+          type: string
+        active_version:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ChatbotDetail:
+      allOf:
+        - $ref: '#/components/schemas/Chatbot'
+        - type: object
+          properties:
+            document_count:
+              type: integer
+            total_sessions:
+              type: integer
+            total_messages:
+              type: integer
+
+    ChatbotPublic:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        persona:
+          type: object
+          properties:
+            greeting:
+              type: string
+
+    ChatbotListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Chatbot'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    # ---- Document ----
+    DocumentStatus:
+      type: string
+      enum: [pending, parsing, chunking, embedding, extracting, graphing, completed, failed]
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        file_size:
+          type: integer
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+        version:
+          type: integer
+        page_count:
+          type: integer
+        processing_progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        error_message:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    DocumentProgress:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        current_stage:
+          type: string
+        error_message:
+          type: string
+
+    # ---- Index Version ----
+    VersionStatus:
+      type: string
+      enum: [building, ready, active, archived]
+
+    IndexVersion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        status:
+          $ref: '#/components/schemas/VersionStatus'
+        created_at:
+          type: string
+          format: date-time
+        activated_at:
+          type: string
+          format: date-time
+
+    # ---- Chat ----
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    MessageRole:
+      type: string
+      enum: [user, assistant]
+
+    Source:
+      type: object
+      properties:
+        document_id:
+          type: string
+          format: uuid
+        document_name:
+          type: string
+        page:
+          type: integer
+        section:
+          type: string
+        relevance_score:
+          type: number
+          format: float
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          $ref: '#/components/schemas/MessageRole'
+        content:
+          type: string
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/Source'
+        created_at:
+          type: string
+          format: date-time
+
+    SendMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 10000
+
+    # ---- Stats ----
+    DailyStats:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        session_count:
+          type: integer
+        message_count:
+          type: integer
+        avg_response_time_ms:
+          type: integer
+
+    ChatbotStatsResponse:
+      type: object
+      properties:
+        total_sessions:
+          type: integer
+        total_messages:
+          type: integer
+        avg_response_time_ms:
+          type: integer
+        daily_stats:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyStats'
+
+    # ---- Error ----
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object

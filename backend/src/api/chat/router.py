@@ -1,0 +1,303 @@
+"""
+Public chat API router.
+"""
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.database import get_db
+from src.api.chat.schemas import (
+    SendMessageRequest,
+    MessageResponse,
+    SessionResponse,
+    SessionDetailResponse,
+    CreateSessionRequest,
+    ChatbotPublicInfo,
+    MessageRole,
+)
+from src.services.chat_service import ChatService
+from src.models.conversation import MessageRole as DBMessageRole
+
+router = APIRouter()
+
+
+async def get_active_chatbot(
+    access_url: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Dependency to get active chatbot by URL."""
+    chatbot = await ChatService.get_chatbot_by_url(db, access_url)
+    if not chatbot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chatbot not found or not active",
+        )
+    return chatbot
+
+
+@router.get("/{access_url}", response_model=ChatbotPublicInfo)
+async def get_chatbot_info(
+    access_url: str,
+    db: AsyncSession = Depends(get_db),
+) -> ChatbotPublicInfo:
+    """
+    Get public chatbot information.
+
+    Args:
+        access_url: Chatbot access URL
+        db: Database session
+
+    Returns:
+        Public chatbot info
+    """
+    chatbot = await get_active_chatbot(access_url, db)
+
+    persona = chatbot.persona or {}
+    return ChatbotPublicInfo(
+        name=chatbot.name,
+        persona_name=persona.get("name", chatbot.name),
+        greeting=persona.get("greeting", "안녕하세요! 무엇을 도와드릴까요?"),
+    )
+
+
+@router.post("/{access_url}/sessions", response_model=SessionResponse)
+async def create_session(
+    access_url: str,
+    request: CreateSessionRequest = None,
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    """
+    Create a new chat session.
+
+    Args:
+        access_url: Chatbot access URL
+        request: Optional session creation request
+        db: Database session
+
+    Returns:
+        Created session info
+    """
+    chatbot = await get_active_chatbot(access_url, db)
+
+    session = await ChatService.create_session(
+        db=db,
+        chatbot_id=chatbot.id,
+    )
+
+    return SessionResponse(
+        id=session.id,
+        chatbot_id=session.chatbot_id,
+        started_at=session.created_at,
+        message_count=0,
+    )
+
+
+@router.get("/{access_url}/sessions/{session_id}", response_model=SessionDetailResponse)
+async def get_session(
+    access_url: str,
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> SessionDetailResponse:
+    """
+    Get session details with messages.
+
+    Args:
+        access_url: Chatbot access URL
+        session_id: Session ID
+        db: Database session
+
+    Returns:
+        Session details with messages
+    """
+    chatbot = await get_active_chatbot(access_url, db)
+
+    session = await ChatService.get_session(
+        db=db,
+        session_id=session_id,
+        chatbot_id=chatbot.id,
+    )
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    messages = await ChatService.get_session_messages(db, session_id)
+    message_count = len(messages)
+
+    return SessionDetailResponse(
+        id=session.id,
+        chatbot_id=session.chatbot_id,
+        started_at=session.created_at,
+        message_count=message_count,
+        messages=[
+            MessageResponse(
+                id=msg.id,
+                session_id=msg.session_id,
+                role=MessageRole(msg.role.value),
+                content=msg.content,
+                sources=msg.sources,
+                created_at=msg.created_at,
+            )
+            for msg in messages
+        ],
+    )
+
+
+@router.post("/{access_url}/sessions/{session_id}/messages")
+async def send_message(
+    access_url: str,
+    session_id: str,
+    request: SendMessageRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Send a message and get response.
+
+    Args:
+        access_url: Chatbot access URL
+        session_id: Session ID
+        request: Message request
+        db: Database session
+
+    Returns:
+        Response message or SSE stream
+    """
+    chatbot = await get_active_chatbot(access_url, db)
+
+    session = await ChatService.get_session(
+        db=db,
+        session_id=session_id,
+        chatbot_id=chatbot.id,
+    )
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    # Save user message
+    user_message = await ChatService.add_message(
+        db=db,
+        session_id=session_id,
+        role=DBMessageRole.USER,
+        content=request.content,
+    )
+
+    if request.stream:
+        # Return SSE stream
+        async def generate_sse():
+            import json
+
+            full_response = ""
+            citations = []
+
+            try:
+                async for chunk in ChatService.generate_response_stream(
+                    db=db,
+                    session_id=session_id,
+                    chatbot=chatbot,
+                    user_message=request.content,
+                ):
+                    chunk_type = chunk.get("type")
+
+                    if chunk_type == "content":
+                        full_response += chunk.get("content", "")
+                        yield f"data: {json.dumps(chunk)}\n\n"
+
+                    elif chunk_type == "sources":
+                        citations = chunk.get("sources", [])
+                        yield f"data: {json.dumps(chunk)}\n\n"
+
+                    elif chunk_type == "done":
+                        # Save assistant message
+                        assistant_message = await ChatService.add_message(
+                            db=db,
+                            session_id=session_id,
+                            role=DBMessageRole.ASSISTANT,
+                            content=full_response,
+                            sources=citations,
+                        )
+                        yield f"data: {json.dumps({'type': 'done', 'message_id': assistant_message.id})}\n\n"
+
+                    elif chunk_type == "error":
+                        yield f"data: {json.dumps(chunk)}\n\n"
+
+            except Exception as e:
+                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+
+        return StreamingResponse(
+            generate_sse(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+    else:
+        # Non-streaming response
+        response_text, citations = await ChatService.generate_response(
+            db=db,
+            session_id=session_id,
+            chatbot=chatbot,
+            user_message=request.content,
+        )
+
+        # Save assistant message
+        assistant_message = await ChatService.add_message(
+            db=db,
+            session_id=session_id,
+            role=DBMessageRole.ASSISTANT,
+            content=response_text,
+            sources=citations,
+        )
+
+        return MessageResponse(
+            id=assistant_message.id,
+            session_id=session_id,
+            role=MessageRole.ASSISTANT,
+            content=response_text,
+            sources=citations,
+            created_at=assistant_message.created_at,
+        )
+
+
+@router.post("/{access_url}/sessions/{session_id}/stop", status_code=status.HTTP_204_NO_CONTENT)
+async def stop_generation(
+    access_url: str,
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """
+    Stop ongoing response generation for a session.
+
+    Args:
+        access_url: Chatbot access URL
+        session_id: Session ID
+        db: Database session
+
+    Note:
+        This endpoint signals the server to stop generating.
+        Client should close the SSE connection.
+    """
+    chatbot = await get_active_chatbot(access_url, db)
+
+    session = await ChatService.get_session(
+        db=db,
+        session_id=session_id,
+        chatbot_id=chatbot.id,
+    )
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    # Signal stop - in a production system, this would set a flag
+    # that the streaming generator checks
+    # For now, the client can simply close the SSE connection
+    pass
