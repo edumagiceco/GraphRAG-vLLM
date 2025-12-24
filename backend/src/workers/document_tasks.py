@@ -13,6 +13,8 @@ from sqlalchemy.orm import sessionmaker
 from src.core.config import settings
 from src.core.celery_app import OllamaRateLimitedTask
 from src.models.document import Document, DocumentStatus as DocumentProcessingStatus
+from src.models.index_version import IndexVersion, VersionStatus
+from src.models.chatbot_service import ChatbotService
 
 logger = get_task_logger(__name__)
 
@@ -48,6 +50,54 @@ def get_db_session():
     sync_url = settings.database_url.replace("+asyncpg", "")
     engine = create_engine(sync_url)
     return Session(engine)
+
+
+def ensure_version_exists(db, chatbot_id: str) -> int:
+    """
+    Ensure a version exists for the chatbot. Creates version 1 if none exists.
+
+    Args:
+        db: Database session
+        chatbot_id: Chatbot ID
+
+    Returns:
+        Active version number
+    """
+    from uuid import uuid4
+
+    # Check if any version exists
+    existing_version = db.query(IndexVersion).filter(
+        IndexVersion.chatbot_id == chatbot_id
+    ).first()
+
+    if existing_version:
+        # Return the active version or the latest one
+        active = db.query(IndexVersion).filter(
+            IndexVersion.chatbot_id == chatbot_id,
+            IndexVersion.status == VersionStatus.ACTIVE
+        ).first()
+        if active:
+            return active.version
+        return existing_version.version
+
+    # Create version 1
+    version = IndexVersion(
+        id=str(uuid4()),
+        chatbot_id=chatbot_id,
+        version=1,
+        status=VersionStatus.ACTIVE,
+        activated_at=datetime.utcnow(),
+    )
+    db.add(version)
+
+    # Update chatbot's active_version
+    chatbot = db.query(ChatbotService).filter(ChatbotService.id == chatbot_id).first()
+    if chatbot:
+        chatbot.active_version = 1
+
+    db.commit()
+    logger.info(f"Created version 1 for chatbot {chatbot_id}")
+    return 1
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
@@ -164,11 +214,16 @@ def process_document(self, document_id: str, chatbot_id: str) -> dict:
         document.processed_at = datetime.utcnow()
         db.commit()
 
+        # Ensure version exists for this chatbot
+        version = ensure_version_exists(db, chatbot_id)
+        logger.info(f"[{document_id}] Active version: {version}")
+
         return {
             "document_id": document_id,
             "status": "completed",
             "chunk_count": len(chunks),
             "entity_count": len(entities) if entities else 0,
+            "version": version,
         }
 
     except Exception as exc:
