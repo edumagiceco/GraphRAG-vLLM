@@ -275,7 +275,7 @@ async def reprocess_documents(
 
     task_ids = []
     for doc in documents:
-        task = process_document.delay(doc.id)
+        task = process_document.delay(doc.id, doc.chatbot_id)
         task_ids.append(task.id)
 
     logger.info(

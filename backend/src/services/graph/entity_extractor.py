@@ -46,7 +46,15 @@ class EntityExtractor:
             model: Optional model override. If None, uses default from settings/database.
         """
         self.use_llm = use_llm
-        self._ollama_url = f"{settings.ollama_base_url}/api/chat"
+
+        # Get Ollama URL from ModelManager (database), fallback to settings
+        try:
+            from src.core.model_manager import ModelManager
+            base_url = ModelManager.get_ollama_base_url_sync()
+        except Exception as e:
+            logger.warning(f"Failed to get Ollama URL from DB: {e}")
+            base_url = settings.ollama_base_url
+        self._ollama_url = f"{base_url}/api/chat"
 
         # Get model from parameter, or try ModelManager, fallback to settings
         if model:
@@ -135,6 +143,8 @@ Rules:
 - Do NOT include any text before or after the JSON array"""
 
         try:
+            logger.info(f"Entity extraction using model={self._model}, url={self._ollama_url}")
+
             # Direct HTTP call to Ollama API (avoids event loop issues in Celery)
             payload = {
                 "model": self._model,
@@ -155,8 +165,12 @@ Rules:
             result = response.json()
             response_text = result.get("message", {}).get("content", "")
 
+            logger.debug(f"LLM response length: {len(response_text)} chars")
+
             # Parse JSON from response - handle multiple JSON arrays
             entities = self._parse_json_array(response_text)
+
+            logger.info(f"Parsed {len(entities)} entities from LLM response")
 
             # Validate and clean entities
             valid_entities = []
@@ -167,7 +181,13 @@ Rules:
                         "type": entity.get("type", "Concept"),
                         "description": str(entity.get("description", ""))[:500],
                     })
+
+            if len(entities) > 0 and len(valid_entities) == 0:
+                logger.warning(f"All {len(entities)} parsed entities were invalid")
+
             return valid_entities
+        except requests.exceptions.RequestException as e:
+            logger.error(f"LLM request failed: {e}, url={self._ollama_url}")
         except Exception as e:
             logger.error(f"LLM entity extraction error: {e}")
 
@@ -183,20 +203,35 @@ Rules:
         Returns:
             Parsed list or empty list on failure
         """
-        # Find the first JSON array
-        start = response.find("[")
-        end = response.rfind("]") + 1
-
-        if start < 0 or end <= start:
+        if not response:
+            logger.warning("Empty response from LLM")
             return []
 
-        json_str = response[start:end]
+        # Remove thinking tags (common in some models like phi4-mini, qwen)
+        cleaned = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL | re.IGNORECASE)
+        # Also handle case where </think> appears without opening tag
+        if '</think>' in cleaned.lower():
+            think_end = cleaned.lower().rfind('</think>')
+            cleaned = cleaned[think_end + 8:]
+        cleaned = cleaned.strip()
+
+        # Find the first JSON array
+        start = cleaned.find("[")
+        end = cleaned.rfind("]") + 1
+
+        if start < 0 or end <= start:
+            logger.warning(f"No JSON array found in response. Response preview: {cleaned[:200]}")
+            return []
+
+        json_str = cleaned[start:end]
 
         # Try direct parsing first
         try:
-            return json.loads(json_str)
-        except json.JSONDecodeError:
-            pass
+            result = json.loads(json_str)
+            if isinstance(result, list):
+                return result
+        except json.JSONDecodeError as e:
+            logger.debug(f"Direct JSON parse failed: {e}")
 
         # Try to fix common issues: multiple JSON arrays concatenated
         # Find the first complete array by counting brackets
@@ -213,13 +248,14 @@ Rules:
 
         if first_array_end > 0:
             try:
-                return json.loads(json_str[:first_array_end])
+                result = json.loads(json_str[:first_array_end])
+                if isinstance(result, list):
+                    return result
             except json.JSONDecodeError:
                 pass
 
         # Try to extract individual objects and build array
         try:
-            import re
             objects = re.findall(r'\{[^{}]*\}', json_str)
             if objects:
                 return [json.loads(obj) for obj in objects]

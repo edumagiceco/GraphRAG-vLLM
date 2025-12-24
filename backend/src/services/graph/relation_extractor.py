@@ -61,7 +61,15 @@ class RelationExtractor:
             model: Optional model override. If None, uses default from settings/database.
         """
         self.use_llm = use_llm
-        self._ollama_url = f"{settings.ollama_base_url}/api/chat"
+
+        # Get Ollama URL from ModelManager (database), fallback to settings
+        try:
+            from src.core.model_manager import ModelManager
+            base_url = ModelManager.get_ollama_base_url_sync()
+        except Exception as e:
+            logger.warning(f"Failed to get Ollama URL from DB: {e}")
+            base_url = settings.ollama_base_url
+        self._ollama_url = f"{base_url}/api/chat"
 
         # Get model from parameter, or try ModelManager, fallback to settings
         if model:
@@ -190,28 +198,48 @@ Rules:
             # Parse JSON from response - handle malformed responses
             relationships = self._parse_json_array(response_text)
 
-            # Validate relationships
+            # Validate relationships with fuzzy matching
             valid_relationships = []
-            entity_names_set = {e["name"].lower() for e in entities}
+            entity_names_lower = {e["name"].lower(): e["name"] for e in entities}
+
+            def find_matching_entity(name: str) -> Optional[str]:
+                """Find matching entity name with fuzzy matching."""
+                name_lower = name.lower().strip()
+                # Exact match
+                if name_lower in entity_names_lower:
+                    return entity_names_lower[name_lower]
+                # Partial match - entity contains the name or vice versa
+                for entity_lower, entity_original in entity_names_lower.items():
+                    if name_lower in entity_lower or entity_lower in name_lower:
+                        return entity_original
+                return None
 
             for rel in relationships:
                 if isinstance(rel, dict):
                     source = str(rel.get("source", ""))
                     target = str(rel.get("target", ""))
-                    rel_type = str(rel.get("type", "RELATED_TO"))
+                    rel_type = str(rel.get("type", "RELATED_TO")).upper()
+
+                    # Normalize relationship type
+                    if rel_type not in self.RELATION_TYPES:
+                        rel_type = "RELATED_TO"
+
+                    # Find matching entities
+                    matched_source = find_matching_entity(source)
+                    matched_target = find_matching_entity(target)
 
                     if (
-                        source.lower() in entity_names_set
-                        and target.lower() in entity_names_set
-                        and source.lower() != target.lower()
-                        and rel_type in self.RELATION_TYPES
+                        matched_source
+                        and matched_target
+                        and matched_source.lower() != matched_target.lower()
                     ):
                         valid_relationships.append({
-                            "source": source,
-                            "target": target,
+                            "source": matched_source,
+                            "target": matched_target,
                             "type": rel_type,
                         })
 
+            logger.info(f"LLM returned {len(relationships)} relationships, {len(valid_relationships)} valid after matching")
             return valid_relationships
         except Exception as e:
             logger.error(f"LLM relationship extraction error: {e}")
