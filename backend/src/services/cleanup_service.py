@@ -2,15 +2,12 @@
 Cleanup service for removing chatbot data from Neo4j and Qdrant.
 """
 import logging
-from typing import Optional
 
-from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
-from neo4j import AsyncDriver
 
 from src.core.config import settings
-from src.core.neo4j import get_neo4j_driver
-from src.core.qdrant import get_qdrant_client
+from src.core.neo4j import Neo4jClient
+from src.core.qdrant import QdrantManager
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +26,16 @@ class CleanupService:
         Returns:
             Number of deleted vectors (approximate)
         """
-        client: QdrantClient = get_qdrant_client()
+        client = QdrantManager.get_client()
         collection_name = settings.qdrant_collection_name
 
         try:
+            # Check if collection exists first
+            collections = client.get_collections().collections
+            if not any(c.name == collection_name for c in collections):
+                logger.info(f"Collection {collection_name} does not exist, nothing to cleanup for chatbot {chatbot_id}")
+                return 0
+
             # First count the vectors to delete
             count_result = client.count(
                 collection_name=collection_name,
@@ -84,10 +87,8 @@ class CleanupService:
         Returns:
             Dict with counts of deleted nodes and relationships
         """
-        driver: AsyncDriver = await get_neo4j_driver()
-
         try:
-            async with driver.session() as session:
+            async with Neo4jClient.session() as session:
                 # Delete all nodes and relationships for this chatbot
                 # Using DETACH DELETE to remove relationships automatically
                 result = await session.run(
