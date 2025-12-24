@@ -28,7 +28,7 @@ export interface ActivateVersionResponse {
  */
 export async function getVersions(chatbotId: string): Promise<VersionListResponse> {
   const response = await api.get<VersionListResponse>(
-    `/admin/chatbots/${chatbotId}/versions`
+    `/chatbots/${chatbotId}/versions`
   )
   return response.data
 }
@@ -41,7 +41,7 @@ export async function getVersion(
   version: number
 ): Promise<Version> {
   const response = await api.get<Version>(
-    `/admin/chatbots/${chatbotId}/versions/${version}`
+    `/chatbots/${chatbotId}/versions/${version}`
   )
   return response.data
 }
@@ -54,7 +54,7 @@ export async function activateVersion(
   version: number
 ): Promise<ActivateVersionResponse> {
   const response = await api.post<ActivateVersionResponse>(
-    `/admin/chatbots/${chatbotId}/versions/${version}/activate`
+    `/chatbots/${chatbotId}/versions/${version}/activate`
   )
   return response.data
 }
@@ -66,5 +66,5 @@ export async function deleteVersion(
   chatbotId: string,
   version: number
 ): Promise<void> {
-  await api.delete(`/admin/chatbots/${chatbotId}/versions/${version}`)
+  await api.delete(`/chatbots/${chatbotId}/versions/${version}`)
 }
