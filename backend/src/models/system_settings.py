@@ -58,3 +58,4 @@ class SettingKeys:
     EMBEDDING_MODEL = "embedding_model"
     EMBEDDING_DIMENSION = "embedding_dimension"
     OLLAMA_BASE_URL = "ollama_base_url"
+    TIMEZONE = "timezone"

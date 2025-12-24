@@ -11,15 +11,47 @@ import {
   updateDefaultLLMModel,
   updateEmbeddingModel,
   updateOllamaUrl,
+  updateTimezone,
   testOllamaConnection,
   reprocessDocuments,
 } from '@/services/settings'
+
+// GMT timezone options
+const TIMEZONE_OPTIONS = [
+  { value: 'GMT-12', label: 'GMT-12 (Baker Island)' },
+  { value: 'GMT-11', label: 'GMT-11 (American Samoa)' },
+  { value: 'GMT-10', label: 'GMT-10 (Hawaii)' },
+  { value: 'GMT-9', label: 'GMT-9 (Alaska)' },
+  { value: 'GMT-8', label: 'GMT-8 (Pacific Time)' },
+  { value: 'GMT-7', label: 'GMT-7 (Mountain Time)' },
+  { value: 'GMT-6', label: 'GMT-6 (Central Time)' },
+  { value: 'GMT-5', label: 'GMT-5 (Eastern Time)' },
+  { value: 'GMT-4', label: 'GMT-4 (Atlantic Time)' },
+  { value: 'GMT-3', label: 'GMT-3 (Brazil)' },
+  { value: 'GMT-2', label: 'GMT-2 (Mid-Atlantic)' },
+  { value: 'GMT-1', label: 'GMT-1 (Azores)' },
+  { value: 'GMT+0', label: 'GMT+0 (London, UTC)' },
+  { value: 'GMT+1', label: 'GMT+1 (Paris, Berlin)' },
+  { value: 'GMT+2', label: 'GMT+2 (Cairo, Athens)' },
+  { value: 'GMT+3', label: 'GMT+3 (Moscow, Istanbul)' },
+  { value: 'GMT+4', label: 'GMT+4 (Dubai)' },
+  { value: 'GMT+5', label: 'GMT+5 (Pakistan)' },
+  { value: 'GMT+5:30', label: 'GMT+5:30 (India)' },
+  { value: 'GMT+6', label: 'GMT+6 (Bangladesh)' },
+  { value: 'GMT+7', label: 'GMT+7 (Bangkok, Jakarta)' },
+  { value: 'GMT+8', label: 'GMT+8 (Singapore, Beijing)' },
+  { value: 'GMT+9', label: 'GMT+9 (Tokyo, Seoul)' },
+  { value: 'GMT+10', label: 'GMT+10 (Sydney)' },
+  { value: 'GMT+11', label: 'GMT+11 (Solomon Islands)' },
+  { value: 'GMT+12', label: 'GMT+12 (Auckland, Fiji)' },
+]
 
 export default function Settings() {
   const queryClient = useQueryClient()
   const [selectedLLM, setSelectedLLM] = useState<string>('')
   const [selectedEmbedding, setSelectedEmbedding] = useState<string>('')
   const [ollamaUrl, setOllamaUrl] = useState<string>('')
+  const [selectedTimezone, setSelectedTimezone] = useState<string>('GMT+0')
   const [showReprocessWarning, setShowReprocessWarning] = useState(false)
 
   // Fetch current settings
@@ -34,6 +66,7 @@ export default function Settings() {
       setSelectedLLM(settings.default_llm_model)
       setSelectedEmbedding(settings.embedding_model)
       setOllamaUrl(settings.ollama_base_url)
+      setSelectedTimezone(settings.timezone)
     }
   }, [settings])
 
@@ -75,6 +108,14 @@ export default function Settings() {
     },
   })
 
+  // Update timezone
+  const updateTimezoneMutation = useMutation({
+    mutationFn: updateTimezone,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['system-settings'] })
+    },
+  })
+
   // Reprocess documents
   const reprocessMutation = useMutation({
     mutationFn: () => reprocessDocuments(undefined, true),
@@ -107,6 +148,12 @@ export default function Settings() {
       )) {
         updateEmbeddingMutation.mutate(selectedEmbedding)
       }
+    }
+  }
+
+  const handleSaveTimezone = () => {
+    if (selectedTimezone && selectedTimezone !== settings?.timezone) {
+      updateTimezoneMutation.mutate(selectedTimezone)
     }
   }
 
@@ -304,6 +351,49 @@ export default function Settings() {
                 </p>
               )}
             </div>
+          )}
+        </div>
+
+        {/* Timezone Settings */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">시간대 설정</h2>
+
+          <div className="flex items-end gap-4">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                시스템 시간대
+              </label>
+              <select
+                value={selectedTimezone}
+                onChange={(e) => setSelectedTimezone(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                {TIMEZONE_OPTIONS.map((tz) => (
+                  <option key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                내부 데이터 처리 및 표시에 사용되는 시간대입니다.
+              </p>
+            </div>
+            <Button
+              onClick={handleSaveTimezone}
+              isLoading={updateTimezoneMutation.isPending}
+              disabled={selectedTimezone === settings?.timezone}
+            >
+              저장
+            </Button>
+          </div>
+
+          {updateTimezoneMutation.isSuccess && (
+            <p className="text-sm text-green-600 mt-2">시간대가 변경되었습니다.</p>
+          )}
+          {updateTimezoneMutation.isError && (
+            <p className="text-sm text-red-600 mt-2">
+              시간대 변경 실패: {(updateTimezoneMutation.error as Error)?.message}
+            </p>
           )}
         </div>
 

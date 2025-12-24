@@ -26,6 +26,7 @@ class SystemSettingsResponse(BaseModel):
     embedding_model: str = Field(..., description="Embedding model for vector generation")
     embedding_dimension: int = Field(..., description="Embedding vector dimension")
     ollama_base_url: str = Field(..., description="Ollama server base URL")
+    timezone: str = Field(..., description="System timezone (e.g., 'GMT+9', 'GMT-5')")
 
 
 class AvailableModelsResponse(BaseModel):
@@ -97,4 +98,15 @@ class UpdateOllamaUrlRequest(BaseModel):
         min_length=1,
         max_length=200,
         description="Ollama server base URL (e.g., 'http://localhost:11434')",
+    )
+
+
+class UpdateTimezoneRequest(BaseModel):
+    """Request schema for updating system timezone."""
+
+    timezone: str = Field(
+        ...,
+        min_length=1,
+        max_length=20,
+        description="Timezone in GMT offset format (e.g., 'GMT+0', 'GMT+9', 'GMT-5')",
     )

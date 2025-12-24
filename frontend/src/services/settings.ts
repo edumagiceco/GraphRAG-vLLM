@@ -18,6 +18,7 @@ export interface SystemSettings {
   embedding_model: string
   embedding_dimension: number
   ollama_base_url: string
+  timezone: string
 }
 
 export interface AvailableModels {
@@ -99,5 +100,13 @@ export async function reprocessDocuments(
  */
 export async function updateOllamaUrl(url: string): Promise<SystemSettings> {
   const response = await api.put<SystemSettings>('/settings/models/ollama-url', { url })
+  return response.data
+}
+
+/**
+ * Update the system timezone.
+ */
+export async function updateTimezone(timezone: string): Promise<SystemSettings> {
+  const response = await api.put<SystemSettings>('/settings/timezone', { timezone })
   return response.data
 }

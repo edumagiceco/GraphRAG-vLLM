@@ -10,17 +10,21 @@ import Button from '@/components/Button'
 import StatusBadge, { mapChatbotStatus } from '@/components/StatusBadge'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import { getChatbots, updateChatbotStatus, deleteChatbot, Chatbot } from '@/services/chatbots'
+import { getSystemSettings } from '@/services/settings'
+import { formatDateOnly } from '@/utils/timezone'
 
 function ChatbotCard({
   chatbot,
   onStatusToggle,
   onDelete,
   isUpdating,
+  timezone,
 }: {
   chatbot: Chatbot
   onStatusToggle: () => void
   onDelete: () => void
   isUpdating: boolean
+  timezone: string
 }) {
   const chatUrl = `${window.location.origin}/chat/${chatbot.access_url}`
 
@@ -44,7 +48,7 @@ function ChatbotCard({
         <div>
           <span className="text-gray-500">생성일:</span>
           <span className="ml-2 font-medium">
-            {new Date(chatbot.created_at).toLocaleDateString()}
+            {formatDateOnly(chatbot.created_at, timezone)}
           </span>
         </div>
       </div>
@@ -161,6 +165,14 @@ export default function ChatbotList() {
     queryFn: () => getChatbots({ page, page_size: pageSize }),
   })
 
+  // Get system timezone
+  const { data: systemSettings } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: getSystemSettings,
+    staleTime: 5 * 60 * 1000,
+  })
+  const timezone = systemSettings?.timezone || 'GMT+0'
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'active' | 'inactive' }) =>
       updateChatbotStatus(id, status),
@@ -258,6 +270,7 @@ export default function ChatbotList() {
                 onStatusToggle={() => handleStatusToggle(chatbot)}
                 onDelete={() => setDeleteTarget(chatbot)}
                 isUpdating={statusMutation.isPending}
+                timezone={timezone}
               />
             ))}
           </div>

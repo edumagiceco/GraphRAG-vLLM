@@ -22,7 +22,9 @@ import {
   deleteChatbot,
 } from '@/services/chatbots'
 import { getVersions } from '@/services/versions'
+import { getSystemSettings } from '@/services/settings'
 import { getErrorMessage } from '@/services/api'
+import { formatDateOnly } from '@/utils/timezone'
 
 export default function ChatbotDetail() {
   const { id } = useParams<{ id: string }>()
@@ -53,6 +55,14 @@ export default function ChatbotDetail() {
     queryFn: () => getVersions(id!),
     enabled: !!id,
   })
+
+  // Get system timezone
+  const { data: systemSettings } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: getSystemSettings,
+    staleTime: 5 * 60 * 1000,
+  })
+  const timezone = systemSettings?.timezone || 'GMT+0'
 
   // Track progress for uploading documents
   const { documents: progressDocs } = useDocumentsProgress({
@@ -292,7 +302,7 @@ export default function ChatbotDetail() {
               <div>
                 <dt className="text-gray-500">생성일</dt>
                 <dd className="mt-1">
-                  {new Date(chatbot.created_at).toLocaleDateString()}
+                  {formatDateOnly(chatbot.created_at, timezone)}
                 </dd>
               </div>
             </dl>

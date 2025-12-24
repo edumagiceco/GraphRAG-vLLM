@@ -2,12 +2,14 @@
  * Document list component with delete functionality and GraphRAG details view.
  */
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import ConfirmDialog from '@/components/ConfirmDialog'
 import DocumentGraphModal from '@/components/DocumentGraphModal'
 import StatusBadge, { mapChatbotStatus } from '@/components/StatusBadge'
 import { Document, deleteDocument } from '@/services/chatbots'
+import { getSystemSettings } from '@/services/settings'
+import { formatDateWithTimezone } from '@/utils/timezone'
 
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B'
@@ -15,16 +17,6 @@ function formatFileSize(bytes: number): string {
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 interface DocumentListProps {
@@ -41,6 +33,14 @@ export default function DocumentList({
   const queryClient = useQueryClient()
   const [deleteTarget, setDeleteTarget] = useState<Document | null>(null)
   const [detailTarget, setDetailTarget] = useState<Document | null>(null)
+
+  // Get system timezone
+  const { data: settings } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: getSystemSettings,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+  const timezone = settings?.timezone || 'GMT+0'
 
   const deleteMutation = useMutation({
     mutationFn: (documentId: string) => deleteDocument(chatbotId, documentId),
@@ -145,7 +145,7 @@ export default function DocumentList({
                   {doc.entity_count || '-'}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500 text-right whitespace-nowrap">
-                  {formatDate(doc.created_at)}
+                  {formatDateWithTimezone(doc.created_at, timezone)}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">

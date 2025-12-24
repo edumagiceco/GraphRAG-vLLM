@@ -428,6 +428,45 @@ class ModelManager:
 
         return None
 
+    # =========================================================================
+    # Timezone Settings
+    # =========================================================================
+
+    @classmethod
+    async def get_timezone(cls) -> str:
+        """Get the system timezone."""
+        tz = await cls.get_setting(SettingKeys.TIMEZONE)
+        result = tz or "GMT+0"
+        # Update cache for sync methods
+        cls._settings_cache[SettingKeys.TIMEZONE] = result
+        return result
+
+    @classmethod
+    async def set_timezone(cls, timezone: str) -> None:
+        """Set the system timezone."""
+        await cls.set_setting(
+            SettingKeys.TIMEZONE,
+            timezone,
+            "System timezone (GMT offset format)"
+        )
+        # Update cache
+        cls._settings_cache[SettingKeys.TIMEZONE] = timezone
+        logger.info(f"Timezone set to: {timezone}")
+
+    @classmethod
+    def get_timezone_sync(cls) -> str:
+        """
+        Synchronous version - uses cache or falls back to default.
+        Safe to call from any context (sync/async).
+        """
+        if SettingKeys.TIMEZONE in cls._settings_cache:
+            return cls._settings_cache[SettingKeys.TIMEZONE]
+        return "GMT+0"
+
+    # =========================================================================
+    # Model Classification
+    # =========================================================================
+
     @classmethod
     def classify_models(cls, models: list[ModelInfo]) -> tuple[list[ModelInfo], list[ModelInfo]]:
         """

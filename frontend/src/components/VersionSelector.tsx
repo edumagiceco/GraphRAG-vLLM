@@ -2,11 +2,13 @@
  * Version selector component with activation capability.
  */
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import Button from '@/components/Button'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import { Version, activateVersion } from '@/services/versions'
+import { getSystemSettings } from '@/services/settings'
+import { formatDateWithTimezone } from '@/utils/timezone'
 
 interface VersionSelectorProps {
   chatbotId: string
@@ -29,17 +31,6 @@ const statusLabels = {
   archived: '보관됨',
 }
 
-function formatDate(dateString: string | null): string {
-  if (!dateString) return '-'
-  return new Date(dateString).toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
 export default function VersionSelector({
   chatbotId,
   versions,
@@ -48,6 +39,14 @@ export default function VersionSelector({
 }: VersionSelectorProps) {
   const queryClient = useQueryClient()
   const [activateTarget, setActivateTarget] = useState<Version | null>(null)
+
+  // Get system timezone
+  const { data: settings } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: getSystemSettings,
+    staleTime: 5 * 60 * 1000,
+  })
+  const timezone = settings?.timezone || 'GMT+0'
 
   const activateMutation = useMutation({
     mutationFn: (version: number) => activateVersion(chatbotId, version),
@@ -117,9 +116,9 @@ export default function VersionSelector({
                   </span>
                 </div>
                 <div className="text-xs text-gray-500 mt-0.5">
-                  생성일: {formatDate(version.created_at)}
+                  생성일: {formatDateWithTimezone(version.created_at, timezone)}
                   {version.activated_at && (
-                    <> | 활성화일: {formatDate(version.activated_at)}</>
+                    <> | 활성화일: {formatDateWithTimezone(version.activated_at, timezone)}</>
                   )}
                 </div>
               </div>

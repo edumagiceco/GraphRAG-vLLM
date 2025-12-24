@@ -18,6 +18,7 @@ from src.api.admin.settings_schemas import (
     UpdateDefaultLLMRequest,
     UpdateEmbeddingModelRequest,
     UpdateOllamaUrlRequest,
+    UpdateTimezoneRequest,
     ConnectionTestResponse,
     ReprocessDocumentsRequest,
     ReprocessDocumentsResponse,
@@ -41,12 +42,14 @@ async def get_model_settings(
     embedding_model = await ModelManager.get_embedding_model()
     embedding_dimension = await ModelManager.get_embedding_dimension()
     ollama_url = await ModelManager.get_ollama_base_url()
+    timezone = await ModelManager.get_timezone()
 
     return SystemSettingsResponse(
         default_llm_model=default_llm,
         embedding_model=embedding_model,
         embedding_dimension=embedding_dimension,
         ollama_base_url=ollama_url,
+        timezone=timezone,
     )
 
 
@@ -221,6 +224,32 @@ async def update_ollama_url(
     await ModelManager.set_ollama_base_url(request.url)
 
     logger.info(f"Ollama URL updated to {request.url} by {current_admin.email}")
+
+    return await get_model_settings(current_admin)
+
+
+@router.put(
+    "/timezone",
+    response_model=SystemSettingsResponse,
+    summary="Update system timezone",
+)
+async def update_timezone(
+    request: UpdateTimezoneRequest,
+    current_admin: AdminUser = Depends(get_current_user),
+) -> SystemSettingsResponse:
+    """Update the system timezone setting."""
+    # Validate timezone format (GMT+N or GMT-N)
+    import re
+    if not re.match(r'^GMT[+-]\d{1,2}(:\d{2})?$', request.timezone):
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid timezone format: {request.timezone}. Use format like 'GMT+0', 'GMT+9', 'GMT-5'",
+        )
+
+    await ModelManager.set_timezone(request.timezone)
+
+    logger.info(f"Timezone updated to {request.timezone} by {current_admin.email}")
 
     return await get_model_settings(current_admin)
 
