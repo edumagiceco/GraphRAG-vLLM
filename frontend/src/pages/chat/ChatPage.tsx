@@ -7,7 +7,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 
 import ChatMessage, { LoadingMessage, ThinkingMessage } from '@/components/ChatMessage'
 import ChatInput from '@/components/ChatInput'
-import { useSSE } from '@/hooks/useSSE'
+import { useSSE, DoneInfo } from '@/hooks/useSSE'
 import {
   getChatbotInfo,
   createSession,
@@ -34,18 +34,21 @@ export default function ChatPage() {
     startStream,
     stopStream,
   } = useSSE({
-    onDone: (messageId, content, doneSources) => {
+    onDone: (info: DoneInfo) => {
       // Add completed assistant message
-      if (content && messageId) {
+      if (info.content && info.messageId) {
+        const messageId = info.messageId // TypeScript narrowing
         setMessages((prev) => [
           ...prev,
           {
             id: messageId,
             session_id: sessionId || '',
-            role: 'assistant',
-            content: content,
-            sources: doneSources,
+            role: 'assistant' as const,
+            content: info.content,
+            sources: info.sources,
             created_at: new Date().toISOString(),
+            elapsed_time: info.elapsedTime,
+            model: info.model,
           },
         ])
       }
@@ -170,6 +173,8 @@ export default function ChatPage() {
               content={message.content}
               sources={message.sources}
               personaName={chatbotInfo.persona_name}
+              elapsedTime={message.elapsed_time}
+              model={message.model}
             />
           ))}
 

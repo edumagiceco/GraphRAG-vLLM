@@ -1,6 +1,7 @@
 """
 Entity extraction service using rule-based and LLM approaches.
 """
+import logging
 import re
 import json
 from typing import Optional
@@ -8,6 +9,8 @@ from typing import Optional
 import requests
 
 from src.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class EntityExtractor:
@@ -34,16 +37,27 @@ class EntityExtractor:
         ],
     }
 
-    def __init__(self, use_llm: bool = True):
+    def __init__(self, use_llm: bool = True, model: Optional[str] = None):
         """
         Initialize entity extractor.
 
         Args:
             use_llm: Whether to use LLM for extraction
+            model: Optional model override. If None, uses default from settings/database.
         """
         self.use_llm = use_llm
         self._ollama_url = f"{settings.ollama_base_url}/api/chat"
-        self._model = settings.ollama_model
+
+        # Get model from parameter, or try ModelManager, fallback to settings
+        if model:
+            self._model = model
+        else:
+            try:
+                from src.core.model_manager import ModelManager
+                self._model = ModelManager.get_default_llm_model_sync()
+            except Exception as e:
+                logger.warning(f"Failed to get model from DB: {e}")
+                self._model = settings.ollama_model
 
     def extract_with_rules(self, text: str) -> list[dict]:
         """
@@ -155,7 +169,7 @@ Rules:
                     })
             return valid_entities
         except Exception as e:
-            print(f"LLM entity extraction error: {e}")
+            logger.error(f"LLM entity extraction error: {e}")
 
         return []
 

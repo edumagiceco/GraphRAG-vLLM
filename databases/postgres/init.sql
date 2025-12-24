@@ -42,6 +42,7 @@ CREATE TABLE chatbot_services (
     status chatbot_status NOT NULL DEFAULT 'processing',
     access_url VARCHAR(100) UNIQUE NOT NULL,
     active_version INTEGER NOT NULL DEFAULT 1,
+    llm_model VARCHAR(100),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -124,6 +125,23 @@ CREATE TABLE chatbot_stats (
 
 CREATE INDEX idx_stats_chatbot_date ON chatbot_stats(chatbot_id, date);
 
+-- System Settings (Key-Value Configuration)
+CREATE TABLE system_settings (
+    key VARCHAR(100) PRIMARY KEY,
+    value TEXT NOT NULL,
+    description VARCHAR(500),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_system_settings_key ON system_settings(key);
+
+-- Trigger for system_settings updated_at
+CREATE TRIGGER update_system_settings_updated_at
+    BEFORE UPDATE ON system_settings
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 -- =============================================================================
 -- Functions
 -- =============================================================================
@@ -165,3 +183,5 @@ COMMENT ON TABLE chatbot_stats IS '챗봇 사용 통계 (일별 집계)';
 
 COMMENT ON COLUMN chatbot_services.persona IS '페르소나 설정 (tone, language, greeting, fallback_message)';
 COMMENT ON COLUMN messages.sources IS '출처 정보 배열 (document_id, document_name, page, section, relevance_score)';
+
+COMMENT ON TABLE system_settings IS '시스템 전역 설정 (LLM 모델, 임베딩 모델 등)';

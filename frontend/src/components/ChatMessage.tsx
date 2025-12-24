@@ -17,6 +17,8 @@ interface ChatMessageProps {
   }>
   isStreaming?: boolean
   personaName?: string
+  elapsedTime?: number
+  model?: string
 }
 
 export default function ChatMessage({
@@ -25,6 +27,8 @@ export default function ChatMessage({
   sources,
   isStreaming = false,
   personaName = 'Assistant',
+  elapsedTime,
+  model,
 }: ChatMessageProps) {
   const isUser = role === 'user'
 
@@ -57,6 +61,28 @@ export default function ChatMessage({
             )}
           </div>
         </div>
+
+        {/* Response info (elapsed time and model) */}
+        {!isUser && !isStreaming && (elapsedTime !== undefined || model) && (
+          <div className="mt-1 flex items-center gap-2 text-xs text-gray-400">
+            {elapsedTime !== undefined && (
+              <span className="flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {elapsedTime}초
+              </span>
+            )}
+            {model && (
+              <span className="flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                {model}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Sources */}
         {!isUser && sources && sources.length > 0 && (

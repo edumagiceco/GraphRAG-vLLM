@@ -23,14 +23,17 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-nemotron-mini:4b}
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3:32b}
+      - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-bge-m3:latest}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - JWT_ALGORITHM=HS256
       - JWT_EXPIRE_MINUTES=60
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - DEBUG=true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ../backend/src:/app/src:ro
       - pdf_storage:/app/storage
@@ -61,8 +64,11 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-nemotron-mini:4b}
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3:32b}
+      - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-bge-m3:latest}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ../backend/src:/app/src:ro
       - pdf_storage:/app/storage
@@ -172,22 +178,23 @@ services:
     networks:
       - graphrag-network
 
-  ollama:
-    image: ollama/ollama:latest
-    container_name: graphrag-ollama-dev
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data_dev:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    networks:
-      - graphrag-network
+  # Ollama runs on remote server (192.168.1.81:11434)
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: graphrag-ollama-dev
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data_dev:/root/.ollama
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: all
+  #             capabilities: [gpu]
+  #   networks:
+  #     - graphrag-network
 
 networks:
   graphrag-network:
@@ -198,5 +205,5 @@ volumes:
   neo4j_data_dev:
   qdrant_data_dev:
   redis_data_dev:
-  ollama_data_dev:
+  # ollama_data_dev:  # Ollama runs on remote server
   pdf_storage:

@@ -34,6 +34,8 @@ export interface ChatMessage {
     chunk_text?: string
   }>
   created_at: string
+  elapsed_time?: number
+  model?: string
 }
 
 export interface SessionDetail extends ChatSession {

@@ -78,6 +78,11 @@ class ChatbotService(Base):
         nullable=False,
         default=1,
     )
+    llm_model: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+        comment="LLM model override for this chatbot. If null, uses system default.",
+    )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

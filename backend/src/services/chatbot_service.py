@@ -26,6 +26,7 @@ class ChatbotServiceManager:
         access_url: str,
         persona: dict,
         description: Optional[str] = None,
+        llm_model: Optional[str] = None,
     ) -> ChatbotService:
         """
         Create a new chatbot service.
@@ -37,6 +38,7 @@ class ChatbotServiceManager:
             access_url: Unique URL slug
             persona: Persona configuration dict
             description: Optional description
+            llm_model: Optional LLM model override
 
         Returns:
             Created chatbot service
@@ -60,6 +62,7 @@ class ChatbotServiceManager:
             access_url=access_url,
             status=ChatbotStatus.INACTIVE,
             active_version=1,
+            llm_model=llm_model,
         )
 
         db.add(chatbot)
@@ -161,6 +164,7 @@ class ChatbotServiceManager:
         name: Optional[str] = None,
         description: Optional[str] = None,
         persona: Optional[dict] = None,
+        llm_model: Optional[str] = None,
     ) -> Optional[ChatbotService]:
         """
         Update a chatbot service.
@@ -172,6 +176,7 @@ class ChatbotServiceManager:
             name: New name
             description: New description
             persona: New persona config
+            llm_model: New LLM model (empty string to clear, None to skip)
 
         Returns:
             Updated chatbot or None if not found
@@ -186,6 +191,9 @@ class ChatbotServiceManager:
             chatbot.description = description
         if persona is not None:
             chatbot.persona = persona
+        if llm_model is not None:
+            # Empty string means use system default (set to None)
+            chatbot.llm_model = llm_model if llm_model else None
 
         await db.commit()
         await db.refresh(chatbot)

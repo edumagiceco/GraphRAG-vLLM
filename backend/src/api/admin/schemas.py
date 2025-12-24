@@ -50,6 +50,11 @@ class CreateChatbotRequest(BaseModel):
         pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
         description="Unique URL slug for public access (lowercase alphanumeric and hyphens)",
     )
+    llm_model: Optional[str] = Field(
+        default=None,
+        max_length=100,
+        description="LLM model override for this chatbot. If null, uses system default.",
+    )
 
     @field_validator("access_url")
     @classmethod
@@ -80,6 +85,11 @@ class UpdateChatbotRequest(BaseModel):
     persona: Optional[PersonaConfig] = Field(
         default=None, description="Chatbot persona configuration"
     )
+    llm_model: Optional[str] = Field(
+        default=None,
+        max_length=100,
+        description="LLM model override for this chatbot. Set to empty string to use system default.",
+    )
 
 
 class ChatbotStatusUpdate(BaseModel):
@@ -97,6 +107,7 @@ class ChatbotResponse(BaseModel):
     status: ChatbotStatus = Field(..., description="Current status")
     access_url: str = Field(..., description="Public access URL slug")
     document_count: int = Field(default=0, description="Number of documents")
+    llm_model: Optional[str] = Field(None, description="LLM model override (null = use default)")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
 
@@ -108,6 +119,9 @@ class ChatbotDetailResponse(ChatbotResponse):
 
     persona: PersonaConfig = Field(..., description="Persona configuration")
     active_version: int = Field(default=1, description="Active index version")
+    effective_llm_model: str = Field(
+        ..., description="Actual LLM model used (chatbot-specific or system default)"
+    )
 
     model_config = {"from_attributes": True}
 

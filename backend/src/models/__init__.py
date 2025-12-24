@@ -5,6 +5,7 @@ from src.models.document import Document, DocumentStatus
 from src.models.conversation import ConversationSession, Message, MessageRole
 from src.models.index_version import IndexVersion, VersionStatus
 from src.models.stats import ChatbotStats
+from src.models.system_settings import SystemSettings, SettingKeys
 
 __all__ = [
     "AdminUser",
@@ -18,4 +19,6 @@ __all__ = [
     "IndexVersion",
     "VersionStatus",
     "ChatbotStats",
+    "SystemSettings",
+    "SettingKeys",
 ]

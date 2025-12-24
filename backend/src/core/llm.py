@@ -2,6 +2,7 @@
 Ollama LLM wrapper using LangChain ChatOllama.
 Provides unified interface for chat completion with streaming support.
 """
+import logging
 from typing import AsyncIterator, Optional
 
 from langchain_ollama import ChatOllama
@@ -9,6 +10,8 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_core.output_parsers import StrOutputParser
 
 from src.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaLLM:
@@ -28,13 +31,33 @@ class OllamaLLM:
         Initialize the Ollama LLM wrapper.
 
         Args:
-            model: Model name (default: from settings)
-            base_url: Ollama server URL (default: from settings)
+            model: Model name (default: from settings/database)
+            base_url: Ollama server URL (default: from settings/database)
             temperature: Sampling temperature (0.0-1.0)
             num_ctx: Context window size
         """
-        self.model = model or settings.ollama_model
-        self.base_url = base_url or settings.ollama_base_url
+        # Get model from parameter, or try ModelManager, fallback to settings
+        if model:
+            self.model = model
+        else:
+            try:
+                from src.core.model_manager import ModelManager
+                self.model = ModelManager.get_default_llm_model_sync()
+            except Exception as e:
+                logger.warning(f"Failed to get LLM model from DB: {e}")
+                self.model = settings.ollama_model
+
+        # Get base_url from parameter, or try ModelManager, fallback to settings
+        if base_url:
+            self.base_url = base_url
+        else:
+            try:
+                from src.core.model_manager import ModelManager
+                self.base_url = ModelManager.get_ollama_base_url_sync()
+            except Exception as e:
+                logger.warning(f"Failed to get Ollama URL from DB: {e}")
+                self.base_url = settings.ollama_base_url
+
         self.temperature = temperature
         self.num_ctx = num_ctx
 
@@ -218,16 +241,55 @@ Focus on the key points and main ideas."""
         )
 
 
-# Singleton instance for convenience
+# Singleton instances - keyed by model name for multi-model support
 _llm_instance: Optional[OllamaLLM] = None
+_current_model: Optional[str] = None
 
 
-def get_llm() -> OllamaLLM:
-    """Get or create the singleton LLM instance."""
-    global _llm_instance
-    if _llm_instance is None:
-        _llm_instance = OllamaLLM()
+def get_llm(model: Optional[str] = None) -> OllamaLLM:
+    """
+    Get or create the LLM instance.
+
+    Args:
+        model: Optional model override. If provided, creates instance with this model.
+               If None, uses the default model from settings/database.
+
+    Returns:
+        OllamaLLM instance
+    """
+    global _llm_instance, _current_model
+
+    # If specific model requested, check if we need to create new instance
+    if model:
+        if _llm_instance is None or _current_model != model:
+            _current_model = model
+            _llm_instance = OllamaLLM(model=model)
+            logger.debug(f"Created new LLM instance with model: {model}")
+        return _llm_instance
+
+    # No specific model - use default
+    # Try to get from ModelManager (DB setting)
+    try:
+        from src.core.model_manager import ModelManager
+        default_model = ModelManager.get_default_llm_model_sync()
+    except Exception as e:
+        logger.warning(f"Failed to get default model from DB: {e}")
+        default_model = settings.ollama_model
+
+    if _llm_instance is None or _current_model != default_model:
+        _current_model = default_model
+        _llm_instance = OllamaLLM(model=default_model)
+        logger.debug(f"Created new LLM instance with default model: {default_model}")
+
     return _llm_instance
+
+
+def reset_llm() -> None:
+    """Reset the LLM singleton instance. Called when model settings change."""
+    global _llm_instance, _current_model
+    _llm_instance = None
+    _current_model = None
+    logger.info("LLM instance reset")
 
 
 async def check_ollama_connection() -> bool:

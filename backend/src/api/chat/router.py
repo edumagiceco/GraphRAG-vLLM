@@ -224,7 +224,14 @@ async def send_message(
                             content=full_response,
                             sources=citations,
                         )
-                        yield f"data: {json.dumps({'type': 'done', 'message_id': assistant_message.id})}\n\n"
+                        # Include elapsed_time and model from the original chunk
+                        done_response = {
+                            'type': 'done',
+                            'message_id': assistant_message.id,
+                            'elapsed_time': chunk.get('elapsed_time'),
+                            'model': chunk.get('model'),
+                        }
+                        yield f"data: {json.dumps(done_response)}\n\n"
 
                     elif chunk_type == "error":
                         yield f"data: {json.dumps(chunk)}\n\n"

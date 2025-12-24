@@ -12,6 +12,7 @@ import ChatbotCreate from '@/pages/admin/ChatbotCreate'
 import ChatbotDetail from '@/pages/admin/ChatbotDetail'
 import ChatbotStats from '@/pages/admin/ChatbotStats'
 import ChatPage from '@/pages/chat/ChatPage'
+import Settings from '@/pages/admin/Settings'
 
 // Create a query client
 const queryClient = new QueryClient({
@@ -73,6 +74,7 @@ function App() {
             <Route path="/admin/chatbots/new" element={<ChatbotCreate />} />
             <Route path="/admin/chatbots/:id" element={<ChatbotDetail />} />
             <Route path="/admin/chatbots/:id/stats" element={<ChatbotStats />} />
+            <Route path="/admin/settings" element={<Settings />} />
           </Route>
 
           {/* Public chat routes (no auth required) */}

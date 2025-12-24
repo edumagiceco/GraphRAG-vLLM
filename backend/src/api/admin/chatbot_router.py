@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
+from src.core.model_manager import ModelManager
 from src.api.deps import CurrentUser
 from src.api.admin.schemas import (
     CreateChatbotRequest,
@@ -16,9 +17,16 @@ from src.api.admin.schemas import (
     PersonaConfig,
 )
 from src.services.chatbot_service import ChatbotServiceManager
-from src.models.chatbot_service import ChatbotStatus
+from src.models.chatbot_service import ChatbotStatus, ChatbotService
 
 router = APIRouter()
+
+
+async def get_effective_llm_model(chatbot: ChatbotService) -> str:
+    """Get the effective LLM model for a chatbot (chatbot-specific or system default)."""
+    if chatbot.llm_model:
+        return chatbot.llm_model
+    return await ModelManager.get_default_llm_model()
 
 
 @router.post("", response_model=ChatbotDetailResponse, status_code=status.HTTP_201_CREATED)
@@ -49,7 +57,10 @@ async def create_chatbot(
             access_url=request.access_url,
             persona=request.persona.model_dump(),
             description=request.description,
+            llm_model=request.llm_model,
         )
+
+        effective_model = await get_effective_llm_model(chatbot)
 
         return ChatbotDetailResponse(
             id=chatbot.id,
@@ -58,10 +69,12 @@ async def create_chatbot(
             status=chatbot.status,
             access_url=chatbot.access_url,
             document_count=0,
+            llm_model=chatbot.llm_model,
             created_at=chatbot.created_at,
             updated_at=chatbot.updated_at,
             persona=PersonaConfig(**chatbot.persona),
             active_version=chatbot.active_version,
+            effective_llm_model=effective_model,
         )
     except ValueError as e:
         raise HTTPException(
@@ -112,6 +125,7 @@ async def list_chatbots(
                 status=chatbot.status,
                 access_url=chatbot.access_url,
                 document_count=doc_count,
+                llm_model=chatbot.llm_model,
                 created_at=chatbot.created_at,
                 updated_at=chatbot.updated_at,
             )
@@ -158,6 +172,7 @@ async def get_chatbot(
         )
 
     doc_count = await ChatbotServiceManager.get_document_count(db, chatbot.id)
+    effective_model = await get_effective_llm_model(chatbot)
 
     return ChatbotDetailResponse(
         id=chatbot.id,
@@ -166,10 +181,12 @@ async def get_chatbot(
         status=chatbot.status,
         access_url=chatbot.access_url,
         document_count=doc_count,
+        llm_model=chatbot.llm_model,
         created_at=chatbot.created_at,
         updated_at=chatbot.updated_at,
         persona=PersonaConfig(**chatbot.persona),
         active_version=chatbot.active_version,
+        effective_llm_model=effective_model,
     )
 
 
@@ -202,6 +219,7 @@ async def update_chatbot(
         name=request.name,
         description=request.description,
         persona=request.persona.model_dump() if request.persona else None,
+        llm_model=request.llm_model,
     )
 
     if not chatbot:
@@ -211,6 +229,7 @@ async def update_chatbot(
         )
 
     doc_count = await ChatbotServiceManager.get_document_count(db, chatbot.id)
+    effective_model = await get_effective_llm_model(chatbot)
 
     return ChatbotDetailResponse(
         id=chatbot.id,
@@ -219,10 +238,12 @@ async def update_chatbot(
         status=chatbot.status,
         access_url=chatbot.access_url,
         document_count=doc_count,
+        llm_model=chatbot.llm_model,
         created_at=chatbot.created_at,
         updated_at=chatbot.updated_at,
         persona=PersonaConfig(**chatbot.persona),
         active_version=chatbot.active_version,
+        effective_llm_model=effective_model,
     )
 
 
@@ -262,6 +283,7 @@ async def update_chatbot_status(
         )
 
     doc_count = await ChatbotServiceManager.get_document_count(db, chatbot.id)
+    effective_model = await get_effective_llm_model(chatbot)
 
     return ChatbotDetailResponse(
         id=chatbot.id,
@@ -270,10 +292,12 @@ async def update_chatbot_status(
         status=chatbot.status,
         access_url=chatbot.access_url,
         document_count=doc_count,
+        llm_model=chatbot.llm_model,
         created_at=chatbot.created_at,
         updated_at=chatbot.updated_at,
         persona=PersonaConfig(**chatbot.persona),
         active_version=chatbot.active_version,
+        effective_llm_model=effective_model,
     )
 
 

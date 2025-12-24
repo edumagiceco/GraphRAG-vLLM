@@ -54,6 +54,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Create initial admin user
     await create_initial_admin()
 
+    # Initialize model settings from database
+    from src.core.model_manager import ModelManager
+    await ModelManager.initialize()
+    logger.info("Model settings initialized from database")
+
     await Neo4jClient.connect()
     logger.info("Neo4j connected")
 
@@ -133,6 +138,7 @@ from src.api.admin.document_router import router as document_router
 from src.api.chat.router import router as chat_router
 from src.api.admin.stats_router import router as stats_router
 from src.api.admin.version_router import router as version_router
+from src.api.admin.settings_router import router as settings_router
 from src.api.health import router as health_router
 
 app.include_router(auth_router, prefix=f"{API_V1_PREFIX}/auth", tags=["Auth"])
@@ -141,6 +147,7 @@ app.include_router(document_router, prefix=f"{API_V1_PREFIX}/chatbots", tags=["D
 app.include_router(chat_router, prefix=f"{API_V1_PREFIX}/chat", tags=["Chat"])
 app.include_router(stats_router, prefix=f"{API_V1_PREFIX}/chatbots", tags=["Stats"])
 app.include_router(version_router, prefix=f"{API_V1_PREFIX}/chatbots", tags=["Versions"])
+app.include_router(settings_router, prefix=f"{API_V1_PREFIX}/settings", tags=["Settings"])
 app.include_router(health_router, prefix=f"{API_V1_PREFIX}", tags=["Health"])
 
 

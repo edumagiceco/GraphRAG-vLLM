@@ -3,6 +3,7 @@ Chat service for managing conversations.
 """
 import asyncio
 import re
+import time
 import uuid
 from datetime import datetime
 from typing import AsyncIterator, Optional, Any
@@ -14,6 +15,7 @@ from src.models.chatbot_service import ChatbotService, ChatbotStatus
 from src.models.conversation import ConversationSession, Message, MessageRole
 from src.services.retrieval.hybrid_retriever import retrieve_context
 from src.services.llm.answer_generator import get_answer_generator
+from src.core.config import settings
 
 
 def clean_llm_response(text: str) -> str:
@@ -47,6 +49,96 @@ def clean_llm_response(text: str) -> str:
     text = re.sub(r'</?think>\s*', '', text, flags=re.IGNORECASE)
 
     return text.strip()
+
+
+class StreamingThinkFilter:
+    """
+    Real-time filter for streaming LLM responses.
+    Filters out <think>...</think> content while streaming.
+    """
+
+    def __init__(self):
+        self.buffer = ""
+        self.in_think_mode = False
+        self.full_response = ""  # Keep track of full response for final cleanup
+
+    def process_chunk(self, chunk: str) -> str:
+        """
+        Process a streaming chunk and return filtered content.
+
+        Args:
+            chunk: Raw chunk from LLM
+
+        Returns:
+            Filtered chunk (empty string if in thinking mode)
+        """
+        self.full_response += chunk
+        self.buffer += chunk
+        output = ""
+
+        while self.buffer:
+            if self.in_think_mode:
+                # Look for </think> to exit thinking mode
+                end_match = re.search(r'</think>', self.buffer, flags=re.IGNORECASE)
+                if end_match:
+                    # Exit thinking mode, discard everything before </think>
+                    self.buffer = self.buffer[end_match.end():]
+                    self.in_think_mode = False
+                elif len(self.buffer) > 20:
+                    # Keep only last 20 chars to detect partial </think>
+                    self.buffer = self.buffer[-20:]
+                    break
+                else:
+                    break
+            else:
+                # Look for <think> to enter thinking mode
+                start_match = re.search(r'<think>', self.buffer, flags=re.IGNORECASE)
+                if start_match:
+                    # Output content before <think>
+                    output += self.buffer[:start_match.start()]
+                    self.buffer = self.buffer[start_match.end():]
+                    self.in_think_mode = True
+                elif '<' in self.buffer:
+                    # Might be start of a tag, keep it in buffer
+                    idx = self.buffer.rfind('<')
+                    if idx > 0:
+                        output += self.buffer[:idx]
+                        self.buffer = self.buffer[idx:]
+                    # If partial tag detected, wait for more data
+                    if len(self.buffer) < 10:
+                        break
+                    else:
+                        # Not a think tag, output it
+                        output += self.buffer
+                        self.buffer = ""
+                else:
+                    # No tags, output everything
+                    output += self.buffer
+                    self.buffer = ""
+
+        return output
+
+    def flush(self) -> str:
+        """
+        Flush remaining buffer content.
+
+        Returns:
+            Any remaining filtered content
+        """
+        if self.in_think_mode:
+            return ""
+        output = self.buffer
+        self.buffer = ""
+        return output
+
+    def get_clean_response(self) -> str:
+        """
+        Get the full cleaned response (for final verification).
+
+        Returns:
+            Complete cleaned response
+        """
+        return clean_llm_response(self.full_response)
 
 
 def sanitize_for_postgres(data: Any) -> Any:
@@ -308,6 +400,9 @@ class ChatService:
         Yields:
             Stream chunks with type and content
         """
+        # Record start time
+        start_time = time.time()
+
         # Send thinking/reasoning start signal
         yield {"type": "thinking_status", "stage": "history", "message": "대화 기록 분석 중..."}
         await asyncio.sleep(0.01)  # Ensure flush to client
@@ -343,13 +438,13 @@ class ChatService:
         yield {"type": "thinking_status", "stage": "generating", "message": "답변 생성 중..."}
         await asyncio.sleep(0.01)  # Ensure flush to client
 
-        # Collect full response first, then clean and stream
-        # This ensures thinking content is completely filtered out
+        # Real-time streaming with thinking content filter
         generator = get_answer_generator()
-        raw_response = ""
+        think_filter = StreamingThinkFilter()
+        streamed_content = ""
 
         try:
-            # Collect entire response
+            # Stream response in real-time with thinking filter
             async for chunk in generator.generate_stream(
                 user_message=user_message,
                 context=context,
@@ -357,16 +452,20 @@ class ChatService:
                 citations=citations,
                 chat_history=chat_history,
             ):
-                raw_response += chunk
+                # Filter thinking content in real-time
+                filtered_chunk = think_filter.process_chunk(chunk)
+                if filtered_chunk:
+                    streamed_content += filtered_chunk
+                    yield {"type": "content", "content": filtered_chunk}
 
-            # Clean the response (remove thinking content)
-            cleaned_response = clean_llm_response(raw_response)
+            # Flush any remaining content in buffer
+            remaining = think_filter.flush()
+            if remaining:
+                streamed_content += remaining
+                yield {"type": "content", "content": remaining}
 
-            # Stream the cleaned response in chunks for smooth display
-            chunk_size = 10  # Characters per chunk
-            for i in range(0, len(cleaned_response), chunk_size):
-                chunk = cleaned_response[i:i + chunk_size]
-                yield {"type": "content", "content": chunk}
+            # Get the final cleaned response (for storage and verification)
+            cleaned_response = think_filter.get_clean_response()
 
             # Send sources with detailed info
             if citations:
@@ -378,8 +477,20 @@ class ChatService:
                     enhanced_citations.append(enhanced)
                 yield {"type": "sources", "sources": enhanced_citations}
 
-            # Send done signal with cleaned content
-            yield {"type": "done", "content": cleaned_response}
+            # Calculate elapsed time
+            elapsed_time = round(time.time() - start_time, 2)
+
+            # Get actual model from ModelManager (DB setting)
+            from src.core.model_manager import ModelManager
+            current_model = ModelManager.get_default_llm_model_sync()
+
+            # Send done signal with cleaned content, elapsed time, and model info
+            yield {
+                "type": "done",
+                "content": cleaned_response,
+                "elapsed_time": elapsed_time,
+                "model": current_model,
+            }
 
         except Exception as e:
             yield {"type": "error", "error": str(e)}

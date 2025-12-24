@@ -27,12 +27,22 @@ interface SSEChunk {
   stage?: string
   message?: string
   source_count?: number
+  elapsed_time?: number
+  model?: string
+}
+
+interface DoneInfo {
+  messageId: string | undefined
+  content: string
+  sources: SSEChunk['sources']
+  elapsedTime?: number
+  model?: string
 }
 
 interface UseSSEOptions {
   onContent?: (content: string) => void
   onSources?: (sources: SSEChunk['sources']) => void
-  onDone?: (messageId: string | undefined, content: string, sources: SSEChunk['sources']) => void
+  onDone?: (info: DoneInfo) => void
   onError?: (error: string) => void
   onThinkingStatus?: (status: ThinkingStatus) => void
 }
@@ -154,7 +164,13 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
                 case 'done':
                   setIsStreaming(false)
                   setThinkingStatus(null)
-                  options.onDone?.(chunk.message_id, fullContent, localSources)
+                  options.onDone?.({
+                    messageId: chunk.message_id,
+                    content: fullContent,
+                    sources: localSources,
+                    elapsedTime: chunk.elapsed_time,
+                    model: chunk.model,
+                  })
                   break
 
                 case 'error':
@@ -196,4 +212,4 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
   }
 }
 
-export type { ThinkingStatus }
+export type { ThinkingStatus, DoneInfo }

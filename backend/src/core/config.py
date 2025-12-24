@@ -59,11 +59,11 @@ class Settings(BaseSettings):
     celery_result_backend: str = Field(default="redis://localhost:6379/1")
 
     # ==========================================================================
-    # Ollama LLM
+    # Ollama LLM (Local)
     # ==========================================================================
     ollama_base_url: str = Field(default="http://localhost:11434")
-    ollama_model: str = Field(default="nemotron-mini:4b")
-    ollama_embedding_model: str = Field(default="nomic-embed-text")
+    ollama_model: str = Field(default="qwen3:32b")
+    ollama_embedding_model: str = Field(default="bge-m3:latest")
 
     # ==========================================================================
     # JWT Authentication

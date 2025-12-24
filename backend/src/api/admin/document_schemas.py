@@ -12,7 +12,11 @@ class DocumentStatus(str, Enum):
     """Document processing status."""
 
     PENDING = "pending"
-    PROCESSING = "processing"
+    PARSING = "parsing"
+    CHUNKING = "chunking"
+    EMBEDDING = "embedding"
+    EXTRACTING = "extracting"
+    GRAPHING = "graphing"
     COMPLETED = "completed"
     FAILED = "failed"
 

@@ -56,7 +56,7 @@ class QdrantManager:
         cls,
         chatbot_id: str,
         version: int,
-        vector_size: int = 768,  # nomic-embed-text dimension
+        vector_size: int = 1024,  # bge-m3 dimension
     ) -> None:
         """
         Create a new collection for a chatbot version.
