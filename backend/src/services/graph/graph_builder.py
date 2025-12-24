@@ -1,11 +1,37 @@
 """
 Knowledge graph builder for Neo4j storage.
 """
+import re
 from typing import Optional
 
 from neo4j import AsyncGraphDatabase, AsyncDriver
 
 from src.core.config import settings
+
+
+def sanitize_label(label: str) -> str:
+    """
+    Sanitize a string to be a valid Neo4j label.
+    Neo4j labels can only contain letters, numbers, and underscores.
+
+    Args:
+        label: Raw label string
+
+    Returns:
+        Sanitized label string
+    """
+    if not label:
+        return "Concept"
+
+    # Replace common separators with underscore
+    sanitized = re.sub(r'[/\-\s]+', '_', label)
+    # Remove any other invalid characters
+    sanitized = re.sub(r'[^a-zA-Z0-9_]', '', sanitized)
+    # Ensure it starts with a letter
+    if sanitized and not sanitized[0].isalpha():
+        sanitized = 'E_' + sanitized
+    # Default to Concept if empty
+    return sanitized if sanitized else "Concept"
 
 
 class GraphBuilder:
@@ -53,8 +79,9 @@ class GraphBuilder:
         async with self._driver.session() as session:
             count = 0
             for entity in entities:
-                entity_type = entity.get("type", "Concept")
-                name = entity.get("name", "")
+                raw_type = entity.get("type", "Concept")
+                entity_type = sanitize_label(raw_type)
+                name = entity.get("name", "").strip()
                 description = entity.get("description", "")
 
                 if not name:
@@ -110,9 +137,12 @@ class GraphBuilder:
         async with self._driver.session() as session:
             count = 0
             for rel in relationships:
-                source = rel.get("source", "")
-                target = rel.get("target", "")
-                rel_type = rel.get("type", "RELATED_TO")
+                source = rel.get("source", "").strip()
+                target = rel.get("target", "").strip()
+                raw_rel_type = rel.get("type", "RELATED_TO")
+                # Sanitize relationship type (uppercase, underscores only)
+                rel_type = re.sub(r'[^A-Z0-9_]', '_', raw_rel_type.upper())
+                rel_type = rel_type if rel_type else "RELATED_TO"
 
                 if not source or not target:
                     continue
