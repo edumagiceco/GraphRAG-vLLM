@@ -347,9 +347,13 @@ async def get_document_progress(
         except ValueError:
             stage = ProcessingStage.PROCESSING
 
+        # Clamp progress to valid range (0-100)
+        raw_progress = int(progress_data.get("progress", 0))
+        clamped_progress = max(0, min(100, raw_progress))
+
         return DocumentProgress(
             document_id=document_id,
-            progress=int(progress_data.get("progress", 0)),
+            progress=clamped_progress,
             stage=stage,
             message=progress_data.get("message"),
             error=progress_data.get("error"),

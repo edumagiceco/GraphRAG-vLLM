@@ -1,9 +1,15 @@
 """
 Celery application configuration for background task processing.
 """
+import asyncio
+import logging
+
 from celery import Celery
+from celery.signals import worker_process_init
 
 from src.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Create Celery application
 celery_app = Celery(
@@ -79,6 +85,32 @@ class OllamaRateLimitedTask(celery_app.Task):
         """Execute task with semaphore for rate limiting."""
         with self._semaphore:
             return super().__call__(*args, **kwargs)
+
+
+# Worker initialization - load settings from database
+@worker_process_init.connect
+def init_worker_process(**kwargs):
+    """
+    Initialize ModelManager settings when worker process starts.
+    This ensures Celery workers use database settings, not just environment variables.
+    """
+    logger.info("Initializing ModelManager for Celery worker...")
+
+    try:
+        from src.core.model_manager import ModelManager
+
+        # Run async initialization in a new event loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(ModelManager.initialize())
+            logger.info("ModelManager initialized successfully for Celery worker")
+        finally:
+            loop.close()
+
+    except Exception as e:
+        logger.error(f"Failed to initialize ModelManager for Celery worker: {e}")
+        # Continue anyway - will fall back to environment variables
 
 
 # Export for task decorators

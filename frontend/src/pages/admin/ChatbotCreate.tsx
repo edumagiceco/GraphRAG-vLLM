@@ -72,8 +72,10 @@ export default function ChatbotCreate() {
 
     if (!formData.access_url.trim()) {
       newErrors.access_url = '접근 URL은 필수입니다'
+    } else if (formData.access_url.length < 3) {
+      newErrors.access_url = '접근 URL은 최소 3글자 이상이어야 합니다'
     } else if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(formData.access_url)) {
-      newErrors.access_url = '접근 URL은 소문자, 숫자, 하이픈만 사용 가능합니다'
+      newErrors.access_url = '접근 URL은 소문자, 숫자, 하이픈만 사용 가능합니다 (시작과 끝은 숫자 또는 문자)'
     }
 
     if (!formData.persona.name.trim()) {
