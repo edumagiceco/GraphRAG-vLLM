@@ -126,7 +126,7 @@ class Settings(BaseSettings):
     # ==========================================================================
     chunk_size: int = Field(default=500)
     chunk_overlap: int = Field(default=100)
-    max_concurrent_llm_requests: int = Field(default=2)
+    max_concurrent_llm_requests: int = Field(default=4)
 
     # ==========================================================================
     # Validators
