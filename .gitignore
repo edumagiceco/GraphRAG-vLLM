@@ -100,3 +100,4 @@ storage/
 *.key
 secrets/
 .secrets
+vllm_env/

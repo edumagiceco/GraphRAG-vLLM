@@ -1,0 +1,212 @@
+{
+  "timestamp": "2025-12-23T23:52:05.344504",
+  "summary": {
+    "total": 20,
+    "successful": 0,
+    "failed": 20,
+    "avg_latency": 0,
+    "avg_score": 0
+  },
+  "results": [
+    {
+      "id": 1,
+      "category": "급여",
+      "difficulty": "easy",
+      "question": "급여체계는 어떻게 구성되어 있나요?",
+      "response": null,
+      "latency": 12.747933864593506,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 2,
+      "category": "급여",
+      "difficulty": "medium",
+      "question": "수습기간 중인 직원의 급여는 어떻게 계산되나요?",
+      "response": null,
+      "latency": 3.445565938949585,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 3,
+      "category": "급여",
+      "difficulty": "medium",
+      "question": "상여금은 언제, 얼마나 지급되나요?",
+      "response": null,
+      "latency": 1.972602367401123,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 4,
+      "category": "복무",
+      "difficulty": "easy",
+      "question": "기본 근무시간과 휴게시간은 어떻게 되나요?",
+      "response": null,
+      "latency": 0.11593341827392578,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 5,
+      "category": "복무",
+      "difficulty": "medium",
+      "question": "결혼할 때 경조휴가는 며칠인가요?",
+      "response": null,
+      "latency": 2.030994176864624,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 6,
+      "category": "복무",
+      "difficulty": "hard",
+      "question": "부모님이 돌아가셨을 때 경조휴가와 지방인 경우 추가일수는 어떻게 되나요?",
+      "response": null,
+      "latency": 0.16583704948425293,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 7,
+      "category": "출장",
+      "difficulty": "easy",
+      "question": "출장여비 정산은 언제까지 해야 하나요?",
+      "response": null,
+      "latency": 0.12979698181152344,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 8,
+      "category": "출장",
+      "difficulty": "medium",
+      "question": "과장급 직원의 출장 시 이용 가능한 교통수단은 무엇인가요?",
+      "response": null,
+      "latency": 0.1593611240386963,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 9,
+      "category": "출장",
+      "difficulty": "hard",
+      "question": "가족과 동시에 부임할 때 부임여비는 어떻게 계산되나요?",
+      "response": null,
+      "latency": 0.1765270233154297,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 10,
+      "category": "복리후생",
+      "difficulty": "easy",
+      "question": "건강진단은 얼마나 자주 실시하나요?",
+      "response": null,
+      "latency": 1.9254224300384521,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 11,
+      "category": "복리후생",
+      "difficulty": "medium",
+      "question": "연월차휴가보상금은 어떻게 계산되나요?",
+      "response": null,
+      "latency": 0.16753339767456055,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 12,
+      "category": "학자금",
+      "difficulty": "easy",
+      "question": "학자금 지급 대상자의 근속연수 조건은 무엇인가요?",
+      "response": null,
+      "latency": 0.1221768856048584,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 13,
+      "category": "학자금",
+      "difficulty": "medium",
+      "question": "대학교 학자금 지원 비율과 지원 자녀수 한도는 어떻게 되나요?",
+      "response": null,
+      "latency": 0.1193997859954834,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 14,
+      "category": "퇴직금",
+      "difficulty": "easy",
+      "question": "퇴직금을 받을 수 있는 최소 근속연수는 얼마인가요?",
+      "response": null,
+      "latency": 0.12541604042053223,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 15,
+      "category": "퇴직금",
+      "difficulty": "medium",
+      "question": "퇴직금을 받을 수 없는 경우는 어떤 경우인가요?",
+      "response": null,
+      "latency": 0.10754251480102539,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 16,
+      "category": "인사",
+      "difficulty": "medium",
+      "question": "승진이 제한되는 경우는 어떤 경우들이 있나요?",
+      "response": null,
+      "latency": 0.14023470878601074,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 17,
+      "category": "상벌",
+      "difficulty": "medium",
+      "question": "정직 처분의 기간과 급여 감액 비율은 어떻게 되나요?",
+      "response": null,
+      "latency": 0.13180279731750488,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 18,
+      "category": "상벌",
+      "difficulty": "hard",
+      "question": "징계기록이 말소되는 조건과 기간은 어떻게 되나요?",
+      "response": null,
+      "latency": 0.17085719108581543,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 19,
+      "category": "복합",
+      "difficulty": "hard",
+      "question": "직원이 질병으로 3개월 이상 휴직할 경우 급여는 어떻게 지급되나요?",
+      "response": null,
+      "latency": 0.15784931182861328,
+      "score": 0,
+      "error": "Error: 500"
+    },
+    {
+      "id": 20,
+      "category": "복합",
+      "difficulty": "hard",
+      "question": "연차휴가 일수와 2년 이상 근속자의 추가 휴가일수는 어떻게 되나요?",
+      "response": null,
+      "latency": 0.19135737419128418,
+      "score": 0,
+      "error": "Error: 500"
+    }
+  ]
+}
