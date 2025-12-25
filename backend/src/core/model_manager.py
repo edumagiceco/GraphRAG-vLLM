@@ -176,7 +176,13 @@ class ModelManager:
     async def get_default_llm_model(cls) -> str:
         """Get the default LLM model name."""
         model = await cls.get_setting(SettingKeys.DEFAULT_LLM_MODEL)
-        result = model or settings.ollama_model
+        # Fallback based on backend type
+        if model:
+            result = model
+        elif settings.llm_backend == "vllm":
+            result = settings.vllm_model
+        else:
+            result = settings.ollama_model
         # Update cache for sync methods
         cls._settings_cache[SettingKeys.DEFAULT_LLM_MODEL] = result
         return result
@@ -221,7 +227,13 @@ class ModelManager:
     async def get_embedding_model(cls) -> str:
         """Get the embedding model name."""
         model = await cls.get_setting(SettingKeys.EMBEDDING_MODEL)
-        result = model or settings.ollama_embedding_model
+        # Fallback based on backend type
+        if model:
+            result = model
+        elif settings.llm_backend == "vllm":
+            result = settings.vllm_embedding_model
+        else:
+            result = settings.ollama_embedding_model
         # Update cache for sync methods
         cls._settings_cache[SettingKeys.EMBEDDING_MODEL] = result
         return result
@@ -533,7 +545,9 @@ class ModelManager:
         # First try cache (populated by async methods)
         if SettingKeys.DEFAULT_LLM_MODEL in cls._settings_cache:
             return cls._settings_cache[SettingKeys.DEFAULT_LLM_MODEL]
-        # Fallback to settings
+        # Fallback to settings based on backend type
+        if settings.llm_backend == "vllm":
+            return settings.vllm_model
         return settings.ollama_model
 
     @classmethod
@@ -545,7 +559,9 @@ class ModelManager:
         # First try cache (populated by async methods)
         if SettingKeys.EMBEDDING_MODEL in cls._settings_cache:
             return cls._settings_cache[SettingKeys.EMBEDDING_MODEL]
-        # Fallback to settings
+        # Fallback to settings based on backend type
+        if settings.llm_backend == "vllm":
+            return settings.vllm_embedding_model
         return settings.ollama_embedding_model
 
     @classmethod
