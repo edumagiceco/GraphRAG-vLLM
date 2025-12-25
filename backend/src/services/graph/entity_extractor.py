@@ -140,7 +140,8 @@ Rules:
 - Names should be concise (1-5 words)
 - Descriptions should be brief but informative (1-2 sentences)
 - Only return valid JSON array, no other text
-- Do NOT include any text before or after the JSON array"""
+- Do NOT include any text before or after the JSON array
+- IMPORTANT: Entity names and descriptions MUST be in the SAME language as the input text (Korean for Korean text, English for English text). Never translate to other languages like Chinese."""
 
         try:
             logger.info(f"Entity extraction using model={self._model}, url={self._ollama_url}")

@@ -172,7 +172,8 @@ Rules:
 - Extract 5-20 most important relationships
 - Source and target must be different entities
 - Only return valid JSON array, no other text
-- Do NOT include any text before or after the JSON array"""
+- Do NOT include any text before or after the JSON array
+- IMPORTANT: Use entity names exactly as provided in the entity list. Do NOT translate names to other languages."""
 
         try:
             # Direct HTTP call to Ollama API (avoids event loop issues in Celery)
