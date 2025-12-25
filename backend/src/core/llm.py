@@ -469,16 +469,17 @@ def get_llm(model: Optional[str] = None, backend: Optional[str] = None) -> BaseL
     # Determine model based on backend
     if model:
         current_model = model
+    elif current_backend == "vllm":
+        # For vLLM backend, always use vllm_model from settings
+        current_model = settings.vllm_model
     else:
+        # For Ollama backend, try ModelManager first
         try:
             from src.core.model_manager import ModelManager
             current_model = ModelManager.get_default_llm_model_sync()
         except Exception as e:
             logger.warning(f"Failed to get default model from DB: {e}")
-            if current_backend == "vllm":
-                current_model = settings.vllm_model
-            else:
-                current_model = settings.ollama_model
+            current_model = settings.ollama_model
 
     # Check if we need to create new instance
     needs_new_instance = (

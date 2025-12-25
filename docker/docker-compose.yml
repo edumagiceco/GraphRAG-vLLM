@@ -21,6 +21,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - LLM_BACKEND=${LLM_BACKEND:-vllm}
       - VLLM_BASE_URL=${VLLM_BASE_URL:-http://vllm:8000/v1}
       - VLLM_MODEL=${VLLM_MODEL:-spow12/Ko-Qwen2-7B-Instruct}
       - VLLM_EMBEDDING_BASE_URL=${VLLM_EMBEDDING_BASE_URL:-http://vllm-embedding:8000/v1}
@@ -62,6 +63,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - LLM_BACKEND=${LLM_BACKEND:-vllm}
       - VLLM_BASE_URL=${VLLM_BASE_URL:-http://vllm:8000/v1}
       - VLLM_MODEL=${VLLM_MODEL:-spow12/Ko-Qwen2-7B-Instruct}
       - VLLM_EMBEDDING_BASE_URL=${VLLM_EMBEDDING_BASE_URL:-http://vllm-embedding:8000/v1}

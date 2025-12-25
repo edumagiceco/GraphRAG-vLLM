@@ -6,8 +6,6 @@ import re
 import json
 from typing import Optional
 
-import requests
-
 from src.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -61,26 +59,15 @@ class RelationExtractor:
             model: Optional model override. If None, uses default from settings/database.
         """
         self.use_llm = use_llm
+        self._model = model
+        self._llm = None
 
-        # Get Ollama URL from ModelManager (database), fallback to settings
-        try:
-            from src.core.model_manager import ModelManager
-            base_url = ModelManager.get_ollama_base_url_sync()
-        except Exception as e:
-            logger.warning(f"Failed to get Ollama URL from DB: {e}")
-            base_url = settings.ollama_base_url
-        self._ollama_url = f"{base_url}/api/chat"
-
-        # Get model from parameter, or try ModelManager, fallback to settings
-        if model:
-            self._model = model
-        else:
-            try:
-                from src.core.model_manager import ModelManager
-                self._model = ModelManager.get_default_llm_model_sync()
-            except Exception as e:
-                logger.warning(f"Failed to get model from DB: {e}")
-                self._model = settings.ollama_model
+    def _get_llm(self):
+        """Get or create the LLM instance."""
+        if self._llm is None:
+            from src.core.llm import get_llm
+            self._llm = get_llm(model=self._model)
+        return self._llm
 
     def extract_with_rules(
         self,
@@ -127,7 +114,7 @@ class RelationExtractor:
         max_length: int = 3000,
     ) -> list[dict]:
         """
-        Extract relationships using LLM via direct HTTP call to Ollama.
+        Extract relationships using LLM.
 
         Args:
             text: Input text
@@ -176,25 +163,13 @@ Rules:
 - IMPORTANT: Use entity names exactly as provided in the entity list. Do NOT translate names to other languages."""
 
         try:
-            # Direct HTTP call to Ollama API (avoids event loop issues in Celery)
-            payload = {
-                "model": self._model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Extract relationships from:\n\n{text}"},
-                ],
-                "stream": False,
-            }
+            llm = self._get_llm()
+            logger.info(f"Relationship extraction using backend={settings.llm_backend}, model={llm.model}")
 
-            response = requests.post(
-                self._ollama_url,
-                json=payload,
-                timeout=120,
+            response_text = llm.generate_sync(
+                user_message=f"Extract relationships from:\n\n{text}",
+                system_prompt=system_prompt,
             )
-            response.raise_for_status()
-
-            result = response.json()
-            response_text = result.get("message", {}).get("content", "")
 
             # Parse JSON from response - handle malformed responses
             relationships = self._parse_json_array(response_text)
