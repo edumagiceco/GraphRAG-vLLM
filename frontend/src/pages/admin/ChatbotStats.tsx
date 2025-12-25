@@ -339,6 +339,86 @@ export default function ChatbotStats() {
             </table>
           </div>
         </div>
+
+        {/* Metrics Glossary */}
+        <div className="card bg-gray-50">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">용어 설명</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Performance Metrics */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <span className="w-2 h-2 bg-primary-500 rounded-full"></span>
+                성능 지표
+              </h3>
+              <dl className="space-y-2 text-sm">
+                <div>
+                  <dt className="font-medium text-gray-700">P50 (중앙값)</dt>
+                  <dd className="text-gray-500">전체 응답의 50%가 이 시간 이내에 완료됨. 일반적인 사용자 경험을 나타냅니다.</dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-gray-700">P95</dt>
+                  <dd className="text-gray-500">전체 응답의 95%가 이 시간 이내에 완료됨. 대부분의 사용자 경험을 나타내며, SLA 기준으로 자주 사용됩니다.</dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-gray-700">P99</dt>
+                  <dd className="text-gray-500">전체 응답의 99%가 이 시간 이내에 완료됨. 최악의 경우 성능을 나타내며, 시스템 안정성 지표로 활용됩니다.</dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-gray-700">평균 응답 시간</dt>
+                  <dd className="text-gray-500">모든 응답 시간의 산술 평균. 극단적인 값에 영향을 받을 수 있어 퍼센타일과 함께 참고합니다.</dd>
+                </div>
+              </dl>
+            </div>
+
+            {/* Token Metrics */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
+                토큰 지표
+              </h3>
+              <dl className="space-y-2 text-sm">
+                <div>
+                  <dt className="font-medium text-gray-700">입력 토큰</dt>
+                  <dd className="text-gray-500">LLM에 전달된 텍스트의 토큰 수. 시스템 프롬프트, 검색된 컨텍스트, 사용자 질문이 포함됩니다.</dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-gray-700">출력 토큰</dt>
+                  <dd className="text-gray-500">LLM이 생성한 응답의 토큰 수. 토큰 수가 많을수록 비용과 응답 시간이 증가합니다.</dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-gray-700">토큰이란?</dt>
+                  <dd className="text-gray-500">텍스트를 처리하는 단위. 한국어는 약 2자당 1토큰, 영어는 약 4자당 1토큰으로 계산됩니다.</dd>
+                </div>
+              </dl>
+            </div>
+
+            {/* Retrieval Metrics */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                검색 지표
+              </h3>
+              <dl className="space-y-2 text-sm">
+                <div>
+                  <dt className="font-medium text-gray-700">검색 청크 수</dt>
+                  <dd className="text-gray-500">질문에 답변하기 위해 검색된 문서 조각의 수. 관련성 높은 컨텍스트를 찾은 횟수입니다.</dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-gray-700">검색 시간</dt>
+                  <dd className="text-gray-500">벡터 DB와 그래프 DB에서 관련 문서를 검색하는 데 소요된 시간입니다.</dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-gray-700">세션</dt>
+                  <dd className="text-gray-500">사용자와 챗봇 간의 대화 단위. 하나의 세션에 여러 메시지가 포함될 수 있습니다.</dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-gray-700">메시지</dt>
+                  <dd className="text-gray-500">사용자 질문과 챗봇 응답을 합한 총 메시지 수입니다.</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </div>
       </div>
     </Layout>
   )
