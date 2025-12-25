@@ -65,7 +65,7 @@ export async function getChatbotStats(
   days: number = 30
 ): Promise<StatsResponse> {
   const response = await api.get<StatsResponse>(
-    `/admin/chatbots/${chatbotId}/stats`,
+    `/chatbots/${chatbotId}/stats`,
     { params: { days } }
   )
   return response.data
@@ -79,7 +79,7 @@ export async function getPerformanceStats(
   days: number = 7
 ): Promise<PerformanceStatsResponse> {
   const response = await api.get<PerformanceStatsResponse>(
-    `/admin/chatbots/${chatbotId}/stats/performance`,
+    `/chatbots/${chatbotId}/stats/performance`,
     { params: { days } }
   )
   return response.data
@@ -93,7 +93,7 @@ export async function recalculateStats(
   days: number = 30
 ): Promise<{ message: string; days_processed: number }> {
   const response = await api.post(
-    `/admin/chatbots/${chatbotId}/stats/recalculate`,
+    `/chatbots/${chatbotId}/stats/recalculate`,
     null,
     { params: { days } }
   )
