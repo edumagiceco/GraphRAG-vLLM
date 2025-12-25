@@ -141,7 +141,7 @@ Rules:
 - Descriptions should be brief but informative (1-2 sentences)
 - Only return valid JSON array, no other text
 - Do NOT include any text before or after the JSON array
-- IMPORTANT: Entity names and descriptions MUST be in the SAME language as the input text (Korean for Korean text, English for English text). Never translate to other languages like Chinese."""
+- CRITICAL LANGUAGE RULE: You MUST write entity names AND descriptions in the EXACT SAME language as the input text. If the input is Korean, write BOTH name and description in Korean. If the input is English, write BOTH in English. NEVER translate or mix languages. This is mandatory."""
 
         try:
             logger.info(f"Entity extraction using model={self._model}, url={self._ollama_url}")
@@ -214,6 +214,10 @@ Rules:
         if '</think>' in cleaned.lower():
             think_end = cleaned.lower().rfind('</think>')
             cleaned = cleaned[think_end + 8:]
+
+        # Remove markdown code blocks (```json ... ``` or ``` ... ```)
+        cleaned = re.sub(r'```json\s*', '', cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r'```\s*', '', cleaned)
         cleaned = cleaned.strip()
 
         # Find the first JSON array

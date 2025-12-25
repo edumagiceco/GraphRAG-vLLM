@@ -257,14 +257,28 @@ Rules:
         Returns:
             Parsed list or empty list on failure
         """
+        if not response:
+            return []
+
+        # Remove thinking tags (common in some models like phi4-mini, qwen)
+        cleaned = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL | re.IGNORECASE)
+        if '</think>' in cleaned.lower():
+            think_end = cleaned.lower().rfind('</think>')
+            cleaned = cleaned[think_end + 8:]
+
+        # Remove markdown code blocks (```json ... ``` or ``` ... ```)
+        cleaned = re.sub(r'```json\s*', '', cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r'```\s*', '', cleaned)
+        cleaned = cleaned.strip()
+
         # Find the first JSON array
-        start = response.find("[")
-        end = response.rfind("]") + 1
+        start = cleaned.find("[")
+        end = cleaned.rfind("]") + 1
 
         if start < 0 or end <= start:
             return []
 
-        json_str = response[start:end]
+        json_str = cleaned[start:end]
 
         # Try direct parsing first
         try:

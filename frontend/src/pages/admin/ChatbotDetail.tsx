@@ -205,23 +205,34 @@ export default function ChatbotDetail() {
             )}
           </div>
 
-          {/* Processing documents */}
+          {/* Processing documents - show latest 3 only */}
           {progressDocs.length > 0 && (
             <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                처리 중
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  처리 중 ({progressDocs.length})
+                </h2>
+                {progressDocs.length > 3 && (
+                  <span className="text-sm text-gray-500">
+                    최근 3건 표시
+                  </span>
+                )}
+              </div>
               <div className="space-y-4">
-                {progressDocs.map((doc) => (
-                  <DocumentProgress
-                    key={doc.documentId}
-                    documentId={doc.documentId}
-                    filename={doc.filename}
-                    progress={doc.progress}
-                    stage={doc.stage}
-                    error={doc.error}
-                  />
-                ))}
+                {progressDocs
+                  .slice()
+                  .reverse()
+                  .slice(0, 3)
+                  .map((doc) => (
+                    <DocumentProgress
+                      key={doc.documentId}
+                      documentId={doc.documentId}
+                      filename={doc.filename}
+                      progress={doc.progress}
+                      stage={doc.stage}
+                      error={doc.error}
+                    />
+                  ))}
               </div>
             </div>
           )}
