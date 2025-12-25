@@ -8,24 +8,26 @@ from pydantic import BaseModel, Field
 
 
 class ModelInfo(BaseModel):
-    """Information about an Ollama model."""
+    """Information about a model."""
 
-    name: str = Field(..., description="Model name (e.g., 'llama2:7b')")
-    size: int = Field(..., description="Model size in bytes")
-    size_formatted: str = Field(..., description="Human-readable size (e.g., '4.1 GB')")
-    modified_at: str = Field(..., description="Last modified timestamp")
-    family: Optional[str] = Field(None, description="Model family (e.g., 'llama')")
-    parameter_size: Optional[str] = Field(None, description="Parameter size (e.g., '7B')")
-    quantization_level: Optional[str] = Field(None, description="Quantization level (e.g., 'Q4_0')")
+    name: str = Field(..., description="Model name")
+    size: int = Field(default=0, description="Model size in bytes")
+    size_formatted: str = Field(default="-", description="Human-readable size")
+    modified_at: str = Field(default="-", description="Last modified timestamp")
+    family: Optional[str] = Field(None, description="Model family")
+    parameter_size: Optional[str] = Field(None, description="Parameter size")
+    quantization_level: Optional[str] = Field(None, description="Quantization level")
 
 
 class SystemSettingsResponse(BaseModel):
     """Response schema for system settings."""
 
+    llm_backend: str = Field(..., description="LLM backend type ('vllm' or 'ollama')")
     default_llm_model: str = Field(..., description="Default LLM model for chat")
     embedding_model: str = Field(..., description="Embedding model for vector generation")
     embedding_dimension: int = Field(..., description="Embedding vector dimension")
-    ollama_base_url: str = Field(..., description="Ollama server base URL")
+    vllm_base_url: str = Field(..., description="vLLM server base URL")
+    vllm_embedding_url: str = Field(..., description="vLLM embedding server URL")
     timezone: str = Field(..., description="System timezone (e.g., 'GMT+9', 'GMT-5')")
 
 
@@ -64,8 +66,12 @@ class ConnectionTestResponse(BaseModel):
     """Response schema for connection test."""
 
     connected: bool = Field(..., description="Whether connection is successful")
-    ollama_version: Optional[str] = Field(None, description="Ollama server version")
-    ollama_base_url: str = Field(..., description="Ollama server URL tested")
+    llm_connected: bool = Field(default=False, description="LLM server connection status")
+    embedding_connected: bool = Field(default=False, description="Embedding server connection status")
+    llm_model: Optional[str] = Field(None, description="Connected LLM model name")
+    embedding_model: Optional[str] = Field(None, description="Connected embedding model name")
+    vllm_base_url: str = Field(..., description="vLLM server URL")
+    vllm_embedding_url: str = Field(..., description="vLLM embedding server URL")
     error: Optional[str] = Field(None, description="Error message if connection failed")
 
 

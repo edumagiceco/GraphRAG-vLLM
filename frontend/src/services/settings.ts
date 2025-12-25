@@ -14,10 +14,12 @@ export interface ModelInfo {
 }
 
 export interface SystemSettings {
+  llm_backend: string
   default_llm_model: string
   embedding_model: string
   embedding_dimension: number
-  ollama_base_url: string
+  vllm_base_url: string
+  vllm_embedding_url: string
   timezone: string
 }
 
@@ -30,8 +32,12 @@ export interface AvailableModels {
 
 export interface ConnectionTest {
   connected: boolean
-  ollama_version: string | null
-  ollama_base_url: string
+  llm_connected: boolean
+  embedding_connected: boolean
+  llm_model: string | null
+  embedding_model: string | null
+  vllm_base_url: string
+  vllm_embedding_url: string
   error: string | null
 }
 
@@ -50,7 +56,7 @@ export async function getSystemSettings(): Promise<SystemSettings> {
 }
 
 /**
- * Get available models from Ollama.
+ * Get available models from vLLM servers.
  */
 export async function getAvailableModels(): Promise<AvailableModels> {
   const response = await api.get<AvailableModels>('/settings/models/available')
@@ -58,25 +64,9 @@ export async function getAvailableModels(): Promise<AvailableModels> {
 }
 
 /**
- * Update the default LLM model.
+ * Test connection to vLLM servers.
  */
-export async function updateDefaultLLMModel(model: string): Promise<SystemSettings> {
-  const response = await api.put<SystemSettings>('/settings/models/default-llm', { model })
-  return response.data
-}
-
-/**
- * Update the embedding model.
- */
-export async function updateEmbeddingModel(model: string): Promise<SystemSettings> {
-  const response = await api.put<SystemSettings>('/settings/models/embedding', { model })
-  return response.data
-}
-
-/**
- * Test connection to Ollama server.
- */
-export async function testOllamaConnection(): Promise<ConnectionTest> {
+export async function testVLLMConnection(): Promise<ConnectionTest> {
   const response = await api.get<ConnectionTest>('/settings/models/test-connection')
   return response.data
 }
@@ -92,14 +82,6 @@ export async function reprocessDocuments(
     chatbot_id: chatbotId,
     force: force ?? false,
   })
-  return response.data
-}
-
-/**
- * Update the Ollama server base URL.
- */
-export async function updateOllamaUrl(url: string): Promise<SystemSettings> {
-  const response = await api.put<SystemSettings>('/settings/models/ollama-url', { url })
   return response.data
 }
 

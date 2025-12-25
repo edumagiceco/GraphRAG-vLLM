@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import get_current_user
 from src.core.database import get_db
+from src.core.config import settings
 from src.core.model_manager import ModelManager
 from src.models.admin_user import AdminUser
 from src.api.admin.settings_schemas import (
@@ -17,7 +18,6 @@ from src.api.admin.settings_schemas import (
     ModelInfo,
     UpdateDefaultLLMRequest,
     UpdateEmbeddingModelRequest,
-    UpdateOllamaUrlRequest,
     UpdateTimezoneRequest,
     ConnectionTestResponse,
     ReprocessDocumentsRequest,
@@ -38,17 +38,16 @@ async def get_model_settings(
     current_admin: AdminUser = Depends(get_current_user),
 ) -> SystemSettingsResponse:
     """Get the current system model settings."""
-    default_llm = await ModelManager.get_default_llm_model()
-    embedding_model = await ModelManager.get_embedding_model()
     embedding_dimension = await ModelManager.get_embedding_dimension()
-    ollama_url = await ModelManager.get_ollama_base_url()
     timezone = await ModelManager.get_timezone()
 
     return SystemSettingsResponse(
-        default_llm_model=default_llm,
-        embedding_model=embedding_model,
+        llm_backend=settings.llm_backend,
+        default_llm_model=settings.vllm_model,
+        embedding_model=settings.vllm_embedding_model,
         embedding_dimension=embedding_dimension,
-        ollama_base_url=ollama_url,
+        vllm_base_url=settings.vllm_base_url,
+        vllm_embedding_url=settings.vllm_embedding_base_url,
         timezone=timezone,
     )
 
@@ -56,176 +55,133 @@ async def get_model_settings(
 @router.get(
     "/models/available",
     response_model=AvailableModelsResponse,
-    summary="List available models from Ollama",
+    summary="List available models from vLLM servers",
 )
 async def list_available_models(
     current_admin: AdminUser = Depends(get_current_user),
 ) -> AvailableModelsResponse:
-    """List all available models from the Ollama server."""
-    models = await ModelManager.list_available_models()
+    """List all available models from the vLLM servers."""
+    import httpx
 
-    # Convert to response format
-    model_infos = [
-        ModelInfo(
-            name=m.name,
-            size=m.size,
-            size_formatted=m.size_formatted,
-            modified_at=m.modified_at,
-            family=m.family,
-            parameter_size=m.parameter_size,
-            quantization_level=m.quantization_level,
-        )
-        for m in models
-    ]
+    models = []
+    chat_models = []
+    embedding_models = []
 
-    # Classify into chat and embedding models
-    chat_models, embedding_models = ModelManager.classify_models(models)
+    # Get LLM models from vLLM server
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{settings.vllm_base_url}/models",
+                timeout=10.0,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                for m in data.get("data", []):
+                    model_info = ModelInfo(
+                        name=m.get("id", "unknown"),
+                        size=0,
+                        size_formatted="-",
+                        modified_at="-",
+                        family=None,
+                        parameter_size=None,
+                        quantization_level=None,
+                    )
+                    models.append(model_info)
+                    chat_models.append(model_info)
+    except Exception as e:
+        logger.warning(f"Failed to get LLM models from vLLM: {e}")
 
-    chat_model_infos = [
-        ModelInfo(
-            name=m.name,
-            size=m.size,
-            size_formatted=m.size_formatted,
-            modified_at=m.modified_at,
-            family=m.family,
-            parameter_size=m.parameter_size,
-            quantization_level=m.quantization_level,
-        )
-        for m in chat_models
-    ]
-
-    embedding_model_infos = [
-        ModelInfo(
-            name=m.name,
-            size=m.size,
-            size_formatted=m.size_formatted,
-            modified_at=m.modified_at,
-            family=m.family,
-            parameter_size=m.parameter_size,
-            quantization_level=m.quantization_level,
-        )
-        for m in embedding_models
-    ]
+    # Get embedding models from vLLM embedding server
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{settings.vllm_embedding_base_url}/models",
+                timeout=10.0,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                for m in data.get("data", []):
+                    model_info = ModelInfo(
+                        name=m.get("id", "unknown"),
+                        size=0,
+                        size_formatted="-",
+                        modified_at="-",
+                        family=None,
+                        parameter_size=None,
+                        quantization_level=None,
+                    )
+                    models.append(model_info)
+                    embedding_models.append(model_info)
+    except Exception as e:
+        logger.warning(f"Failed to get embedding models from vLLM: {e}")
 
     return AvailableModelsResponse(
-        models=model_infos,
-        chat_models=chat_model_infos,
-        embedding_models=embedding_model_infos,
+        models=models,
+        chat_models=chat_models,
+        embedding_models=embedding_models,
         total=len(models),
     )
-
-
-@router.put(
-    "/models/default-llm",
-    response_model=SystemSettingsResponse,
-    summary="Update default LLM model",
-)
-async def update_default_llm_model(
-    request: UpdateDefaultLLMRequest,
-    current_admin: AdminUser = Depends(get_current_user),
-) -> SystemSettingsResponse:
-    """Update the default LLM model for chat completion."""
-    # Verify model exists
-    models = await ModelManager.list_available_models()
-    model_names = [m.name for m in models]
-
-    if request.model not in model_names:
-        # Check if it's a partial match (without tag)
-        base_name = request.model.split(":")[0]
-        matching = [m for m in model_names if m.startswith(base_name)]
-        if not matching:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Model '{request.model}' not found in Ollama. "
-                       f"Available models: {', '.join(model_names[:5])}...",
-            )
-
-    await ModelManager.set_default_llm_model(request.model)
-
-    # Reset LLM instance to use new model
-    ModelManager.reset_llm_instance()
-
-    logger.info(f"Default LLM model updated to {request.model} by {current_admin.email}")
-
-    return await get_model_settings(current_admin)
-
-
-@router.put(
-    "/models/embedding",
-    response_model=SystemSettingsResponse,
-    summary="Update embedding model",
-)
-async def update_embedding_model(
-    request: UpdateEmbeddingModelRequest,
-    current_admin: AdminUser = Depends(get_current_user),
-) -> SystemSettingsResponse:
-    """
-    Update the embedding model.
-
-    WARNING: Changing the embedding model will make existing vectors incompatible.
-    You should reprocess all documents after changing this setting.
-    """
-    # Verify model exists
-    models = await ModelManager.list_available_models()
-    model_names = [m.name for m in models]
-
-    if request.model not in model_names:
-        base_name = request.model.split(":")[0]
-        matching = [m for m in model_names if m.startswith(base_name)]
-        if not matching:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Model '{request.model}' not found in Ollama.",
-            )
-
-    await ModelManager.set_embedding_model(request.model)
-
-    # Reset embedding instance to use new model
-    ModelManager.reset_embedding_instance()
-
-    logger.warning(
-        f"Embedding model updated to {request.model} by {current_admin.email}. "
-        "Existing vectors may be incompatible!"
-    )
-
-    return await get_model_settings(current_admin)
 
 
 @router.get(
     "/models/test-connection",
     response_model=ConnectionTestResponse,
-    summary="Test Ollama connection",
+    summary="Test vLLM connection",
 )
-async def test_ollama_connection(
+async def test_vllm_connection(
     current_admin: AdminUser = Depends(get_current_user),
 ) -> ConnectionTestResponse:
-    """Test connection to the Ollama server."""
-    ollama_url = await ModelManager.get_ollama_base_url()
-    connected, version, error = await ModelManager.test_connection()
+    """Test connection to the vLLM servers."""
+    import httpx
+
+    llm_connected = False
+    embedding_connected = False
+    llm_model = None
+    embedding_model = None
+    errors = []
+
+    # Test LLM server
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{settings.vllm_base_url}/models",
+                timeout=10.0,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                models = data.get("data", [])
+                if models:
+                    llm_connected = True
+                    llm_model = models[0].get("id", "unknown")
+    except Exception as e:
+        errors.append(f"LLM server: {str(e)}")
+
+    # Test embedding server
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{settings.vllm_embedding_base_url}/models",
+                timeout=10.0,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                models = data.get("data", [])
+                if models:
+                    embedding_connected = True
+                    embedding_model = models[0].get("id", "unknown")
+    except Exception as e:
+        errors.append(f"Embedding server: {str(e)}")
 
     return ConnectionTestResponse(
-        connected=connected,
-        ollama_version=version,
-        ollama_base_url=ollama_url,
-        error=error,
+        connected=llm_connected and embedding_connected,
+        llm_connected=llm_connected,
+        embedding_connected=embedding_connected,
+        llm_model=llm_model,
+        embedding_model=embedding_model,
+        vllm_base_url=settings.vllm_base_url,
+        vllm_embedding_url=settings.vllm_embedding_base_url,
+        error="; ".join(errors) if errors else None,
     )
-
-
-@router.put(
-    "/models/ollama-url",
-    response_model=SystemSettingsResponse,
-    summary="Update Ollama base URL",
-)
-async def update_ollama_url(
-    request: UpdateOllamaUrlRequest,
-    current_admin: AdminUser = Depends(get_current_user),
-) -> SystemSettingsResponse:
-    """Update the Ollama server base URL."""
-    await ModelManager.set_ollama_base_url(request.url)
-
-    logger.info(f"Ollama URL updated to {request.url} by {current_admin.email}")
-
-    return await get_model_settings(current_admin)
 
 
 @router.put(

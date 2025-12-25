@@ -1,5 +1,5 @@
 /**
- * System Settings page for model configuration.
+ * System Settings page for vLLM model configuration.
  */
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -8,11 +8,8 @@ import Button from '@/components/Button'
 import {
   getSystemSettings,
   getAvailableModels,
-  updateDefaultLLMModel,
-  updateEmbeddingModel,
-  updateOllamaUrl,
   updateTimezone,
-  testOllamaConnection,
+  testVLLMConnection,
   reprocessDocuments,
 } from '@/services/settings'
 
@@ -48,11 +45,7 @@ const TIMEZONE_OPTIONS = [
 
 export default function Settings() {
   const queryClient = useQueryClient()
-  const [selectedLLM, setSelectedLLM] = useState<string>('')
-  const [selectedEmbedding, setSelectedEmbedding] = useState<string>('')
-  const [ollamaUrl, setOllamaUrl] = useState<string>('')
   const [selectedTimezone, setSelectedTimezone] = useState<string>('GMT+0')
-  const [showReprocessWarning, setShowReprocessWarning] = useState(false)
 
   // Fetch current settings
   const { data: settings, isLoading: settingsLoading } = useQuery({
@@ -63,9 +56,6 @@ export default function Settings() {
   // Sync selected values with fetched settings
   useEffect(() => {
     if (settings) {
-      setSelectedLLM(settings.default_llm_model)
-      setSelectedEmbedding(settings.embedding_model)
-      setOllamaUrl(settings.ollama_base_url)
       setSelectedTimezone(settings.timezone)
     }
   }, [settings])
@@ -78,34 +68,7 @@ export default function Settings() {
 
   // Connection test
   const connectionMutation = useMutation({
-    mutationFn: testOllamaConnection,
-  })
-
-  // Update Ollama URL
-  const updateUrlMutation = useMutation({
-    mutationFn: updateOllamaUrl,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['system-settings'] })
-      queryClient.invalidateQueries({ queryKey: ['available-models'] })
-      connectionMutation.reset()
-    },
-  })
-
-  // Update LLM model
-  const updateLLMMutation = useMutation({
-    mutationFn: updateDefaultLLMModel,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['system-settings'] })
-    },
-  })
-
-  // Update embedding model
-  const updateEmbeddingMutation = useMutation({
-    mutationFn: updateEmbeddingModel,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['system-settings'] })
-      setShowReprocessWarning(true)
-    },
+    mutationFn: testVLLMConnection,
   })
 
   // Update timezone
@@ -119,36 +82,10 @@ export default function Settings() {
   // Reprocess documents
   const reprocessMutation = useMutation({
     mutationFn: () => reprocessDocuments(undefined, true),
-    onSuccess: () => {
-      setShowReprocessWarning(false)
-    },
   })
 
   const handleTestConnection = () => {
     connectionMutation.mutate()
-  }
-
-  const handleSaveUrl = () => {
-    if (ollamaUrl && ollamaUrl !== settings?.ollama_base_url) {
-      updateUrlMutation.mutate(ollamaUrl)
-    }
-  }
-
-  const handleSaveLLM = () => {
-    if (selectedLLM && selectedLLM !== settings?.default_llm_model) {
-      updateLLMMutation.mutate(selectedLLM)
-    }
-  }
-
-  const handleSaveEmbedding = () => {
-    if (selectedEmbedding && selectedEmbedding !== settings?.embedding_model) {
-      if (window.confirm(
-        '임베딩 모델을 변경하면 기존 문서와 호환되지 않을 수 있습니다.\n' +
-        '변경 후 문서 재처리가 필요합니다.\n\n계속하시겠습니까?'
-      )) {
-        updateEmbeddingMutation.mutate(selectedEmbedding)
-      }
-    }
   }
 
   const handleSaveTimezone = () => {
@@ -178,31 +115,38 @@ export default function Settings() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">시스템 설정</h1>
 
-        {/* Ollama Connection Status */}
+        {/* vLLM Connection Status */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Ollama 서버 설정</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">vLLM 서버 설정</h2>
 
           <div className="space-y-4">
-            <div className="flex items-end gap-4">
-              <div className="flex-1">
+            {/* LLM Server URL */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ollama 서버 URL
+                  LLM 서버 URL
                 </label>
                 <input
                   type="text"
-                  value={ollamaUrl}
-                  onChange={(e) => setOllamaUrl(e.target.value)}
-                  placeholder="http://localhost:11434"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-mono text-sm"
+                  value={settings?.vllm_base_url || ''}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm"
                 />
               </div>
-              <Button
-                onClick={handleSaveUrl}
-                isLoading={updateUrlMutation.isPending}
-                disabled={ollamaUrl === settings?.ollama_base_url}
-              >
-                저장
-              </Button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  임베딩 서버 URL
+                </label>
+                <input
+                  type="text"
+                  value={settings?.vllm_embedding_url || ''}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
               <Button
                 onClick={handleTestConnection}
                 isLoading={connectionMutation.isPending}
@@ -210,147 +154,88 @@ export default function Settings() {
               >
                 연결 테스트
               </Button>
-            </div>
 
-            {updateUrlMutation.isSuccess && (
-              <p className="text-sm text-green-600">Ollama URL이 변경되었습니다.</p>
-            )}
-            {updateUrlMutation.isError && (
-              <p className="text-sm text-red-600">
-                URL 변경 실패: {(updateUrlMutation.error as Error)?.message}
-              </p>
-            )}
-
-            {connectionMutation.data && (
-              <p className={`text-sm ${connectionMutation.data.connected ? 'text-green-600' : 'text-red-600'}`}>
-                {connectionMutation.data.connected
-                  ? `연결됨 (버전: ${connectionMutation.data.ollama_version})`
-                  : `연결 실패: ${connectionMutation.data.error}`}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Default LLM Model */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">기본 LLM 모델</h2>
-
-          <div className="flex items-end gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                채팅용 모델
-              </label>
-              <select
-                value={selectedLLM}
-                onChange={(e) => setSelectedLLM(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                disabled={modelsLoading}
-              >
-                {modelsLoading ? (
-                  <option>모델 목록 불러오는 중...</option>
-                ) : (
-                  <>
-                    {availableModels?.chat_models.map((model) => (
-                      <option key={model.name} value={model.name}>
-                        {model.name} ({model.size_formatted})
-                      </option>
-                    ))}
-                  </>
-                )}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                챗봇별 설정이 없을 때 사용되는 기본 모델입니다.
-              </p>
-            </div>
-            <Button
-              onClick={handleSaveLLM}
-              isLoading={updateLLMMutation.isPending}
-              disabled={selectedLLM === settings?.default_llm_model}
-            >
-              저장
-            </Button>
-          </div>
-
-          {updateLLMMutation.isSuccess && (
-            <p className="text-sm text-green-600 mt-2">기본 LLM 모델이 변경되었습니다.</p>
-          )}
-          {updateLLMMutation.isError && (
-            <p className="text-sm text-red-600 mt-2">
-              모델 변경 실패: {(updateLLMMutation.error as Error)?.message}
-            </p>
-          )}
-        </div>
-
-        {/* Embedding Model */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">임베딩 모델</h2>
-
-          <div className="flex items-end gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                벡터 생성용 모델
-              </label>
-              <select
-                value={selectedEmbedding}
-                onChange={(e) => setSelectedEmbedding(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                disabled={modelsLoading}
-              >
-                {modelsLoading ? (
-                  <option>모델 목록 불러오는 중...</option>
-                ) : (
-                  <>
-                    {availableModels?.embedding_models.map((model) => (
-                      <option key={model.name} value={model.name}>
-                        {model.name} ({model.size_formatted})
-                      </option>
-                    ))}
-                  </>
-                )}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                현재 차원: {settings?.embedding_dimension}
-              </p>
-            </div>
-            <Button
-              onClick={handleSaveEmbedding}
-              isLoading={updateEmbeddingMutation.isPending}
-              disabled={selectedEmbedding === settings?.embedding_model}
-            >
-              저장
-            </Button>
-          </div>
-
-          {/* Warning for embedding model change */}
-          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm text-yellow-800">
-              <span className="font-semibold">주의:</span> 임베딩 모델을 변경하면 기존에 처리된 문서의 벡터와 호환되지 않습니다.
-              변경 후 모든 문서를 다시 처리해야 합니다.
-            </p>
-          </div>
-
-          {updateEmbeddingMutation.isSuccess && (
-            <p className="text-sm text-green-600 mt-2">임베딩 모델이 변경되었습니다.</p>
-          )}
-
-          {showReprocessWarning && (
-            <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-              <p className="text-sm text-orange-800 mb-3">
-                임베딩 모델이 변경되었습니다. 기존 문서가 제대로 검색되지 않을 수 있습니다.
-              </p>
-              <Button
-                onClick={handleReprocess}
-                isLoading={reprocessMutation.isPending}
-                variant="secondary"
-              >
-                전체 문서 재처리
-              </Button>
-              {reprocessMutation.isSuccess && (
-                <p className="text-sm text-green-600 mt-2">
-                  {reprocessMutation.data?.document_count}개 문서의 재처리가 시작되었습니다.
-                </p>
+              {connectionMutation.data && (
+                <div className="flex-1">
+                  <div className="flex items-center gap-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      connectionMutation.data.llm_connected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      LLM: {connectionMutation.data.llm_connected ? '연결됨' : '연결 안됨'}
+                    </span>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      connectionMutation.data.embedding_connected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      임베딩: {connectionMutation.data.embedding_connected ? '연결됨' : '연결 안됨'}
+                    </span>
+                  </div>
+                  {connectionMutation.data.error && (
+                    <p className="text-sm text-red-600 mt-1">{connectionMutation.data.error}</p>
+                  )}
+                </div>
               )}
             </div>
+
+            <p className="text-xs text-gray-500">
+              vLLM 서버 URL은 환경 변수로 설정됩니다. 변경하려면 docker-compose.yml을 수정하세요.
+            </p>
+          </div>
+        </div>
+
+        {/* Current Models */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">현재 모델 설정</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                LLM 모델 (채팅용)
+              </label>
+              <div className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                <span className="font-mono text-sm">{settings?.default_llm_model || '-'}</span>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                임베딩 모델 (벡터 생성용)
+              </label>
+              <div className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                <span className="font-mono text-sm">{settings?.embedding_model || '-'}</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                차원: {settings?.embedding_dimension}
+              </p>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-500 mt-4">
+            모델은 환경 변수(VLLM_MODEL, VLLM_EMBEDDING_MODEL)로 설정됩니다.
+          </p>
+        </div>
+
+        {/* Document Reprocessing */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">문서 재처리</h2>
+
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+            <p className="text-sm text-yellow-800">
+              <span className="font-semibold">주의:</span> 임베딩 모델이 변경된 경우, 기존 문서를 재처리해야 합니다.
+              이 작업은 시간이 소요될 수 있습니다.
+            </p>
+          </div>
+
+          <Button
+            onClick={handleReprocess}
+            isLoading={reprocessMutation.isPending}
+            variant="secondary"
+          >
+            전체 문서 재처리
+          </Button>
+
+          {reprocessMutation.isSuccess && (
+            <p className="text-sm text-green-600 mt-2">
+              {reprocessMutation.data?.document_count}개 문서의 재처리가 시작되었습니다.
+            </p>
           )}
         </div>
 
@@ -410,29 +295,74 @@ export default function Settings() {
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">이름</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">크기</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">패밀리</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">파라미터</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">양자화</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {availableModels?.models.map((model) => (
-                    <tr key={model.name} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{model.name}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{model.size_formatted}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{model.family || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{model.parameter_size || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{model.quantization_level || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-4">
+              {/* Chat Models */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">LLM 모델</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">모델 이름</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">상태</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {availableModels?.chat_models.map((model) => (
+                        <tr key={model.name} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 font-mono">{model.name}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              활성
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!availableModels?.chat_models || availableModels.chat_models.length === 0) && (
+                        <tr>
+                          <td colSpan={2} className="px-4 py-3 text-sm text-gray-500 text-center">
+                            연결된 LLM 모델이 없습니다
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Embedding Models */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">임베딩 모델</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">모델 이름</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">상태</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {availableModels?.embedding_models.map((model) => (
+                        <tr key={model.name} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 font-mono">{model.name}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              활성
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!availableModels?.embedding_models || availableModels.embedding_models.length === 0) && (
+                        <tr>
+                          <td colSpan={2} className="px-4 py-3 text-sm text-gray-500 text-center">
+                            연결된 임베딩 모델이 없습니다
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
         </div>
