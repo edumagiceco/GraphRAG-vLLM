@@ -174,21 +174,69 @@ Rules:
             # Parse JSON from response - handle malformed responses
             relationships = self._parse_json_array(response_text)
 
-            # Validate relationships with fuzzy matching
+            # Log parsed relationships for debugging
+            logger.debug(f"Parsed relationships: {relationships}")
+            logger.debug(f"Available entities: {[e['name'] for e in entities]}")
+
+            # Validate relationships with improved fuzzy matching
             valid_relationships = []
             entity_names_lower = {e["name"].lower(): e["name"] for e in entities}
 
+            def normalize_name(name: str) -> str:
+                """Normalize entity name for matching."""
+                # Remove extra spaces, convert to lowercase
+                return " ".join(name.lower().strip().split())
+
+            def get_words(name: str) -> set:
+                """Get set of words from name."""
+                return set(normalize_name(name).split())
+
             def find_matching_entity(name: str) -> Optional[str]:
-                """Find matching entity name with fuzzy matching."""
-                name_lower = name.lower().strip()
-                # Exact match
-                if name_lower in entity_names_lower:
-                    return entity_names_lower[name_lower]
-                # Partial match - entity contains the name or vice versa
+                """Find matching entity name with improved fuzzy matching."""
+                if not name:
+                    return None
+
+                name_normalized = normalize_name(name)
+                name_words = get_words(name)
+
+                # 1. Exact match (normalized)
                 for entity_lower, entity_original in entity_names_lower.items():
-                    if name_lower in entity_lower or entity_lower in name_lower:
+                    if name_normalized == normalize_name(entity_lower):
                         return entity_original
+
+                # 2. Partial match - entity contains the name or vice versa
+                for entity_lower, entity_original in entity_names_lower.items():
+                    entity_normalized = normalize_name(entity_lower)
+                    if name_normalized in entity_normalized or entity_normalized in name_normalized:
+                        return entity_original
+
+                # 3. Word overlap matching - if significant word overlap exists
+                best_match = None
+                best_overlap = 0
+                for entity_lower, entity_original in entity_names_lower.items():
+                    entity_words = get_words(entity_lower)
+                    overlap = len(name_words & entity_words)
+                    # Require at least 1 word overlap and > 50% match
+                    min_len = min(len(name_words), len(entity_words))
+                    if overlap > 0 and overlap >= min_len * 0.5:
+                        if overlap > best_overlap:
+                            best_overlap = overlap
+                            best_match = entity_original
+
+                if best_match:
+                    return best_match
+
+                # 4. Check if any word in the name matches any entity exactly
+                for word in name_words:
+                    if len(word) > 2:  # Skip short words
+                        for entity_lower, entity_original in entity_names_lower.items():
+                            if word == normalize_name(entity_lower):
+                                return entity_original
+
                 return None
+
+            unmatched_sources = []
+            unmatched_targets = []
 
             for rel in relationships:
                 if isinstance(rel, dict):
@@ -204,6 +252,11 @@ Rules:
                     matched_source = find_matching_entity(source)
                     matched_target = find_matching_entity(target)
 
+                    if not matched_source:
+                        unmatched_sources.append(source)
+                    if not matched_target:
+                        unmatched_targets.append(target)
+
                     if (
                         matched_source
                         and matched_target
@@ -214,6 +267,9 @@ Rules:
                             "target": matched_target,
                             "type": rel_type,
                         })
+
+            if unmatched_sources or unmatched_targets:
+                logger.warning(f"Unmatched sources: {unmatched_sources[:5]}, targets: {unmatched_targets[:5]}")
 
             logger.info(f"LLM returned {len(relationships)} relationships, {len(valid_relationships)} valid after matching")
             return valid_relationships
