@@ -59,11 +59,31 @@ class Settings(BaseSettings):
     celery_result_backend: str = Field(default="redis://localhost:6379/1")
 
     # ==========================================================================
+    # LLM Backend Selection
+    # ==========================================================================
+    llm_backend: str = Field(
+        default="ollama",
+        description="LLM backend: 'ollama' or 'vllm'",
+    )
+
+    # ==========================================================================
     # Ollama LLM (Local)
     # ==========================================================================
     ollama_base_url: str = Field(default="http://localhost:11434")
     ollama_model: str = Field(default="qwen3:32b")
     ollama_embedding_model: str = Field(default="bge-m3:latest")
+
+    # ==========================================================================
+    # vLLM Server (High Performance)
+    # ==========================================================================
+    vllm_base_url: str = Field(
+        default="http://localhost:8001/v1",
+        description="vLLM OpenAI-compatible API endpoint",
+    )
+    vllm_model: str = Field(
+        default="Qwen/Qwen2.5-32B-Instruct",
+        description="HuggingFace model name for vLLM",
+    )
 
     # ==========================================================================
     # JWT Authentication

@@ -21,9 +21,12 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - LLM_BACKEND=${LLM_BACKEND:-ollama}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3:32b}
       - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-bge-m3:latest}
+      - VLLM_BASE_URL=${VLLM_BASE_URL:-http://host.docker.internal:8001/v1}
+      - VLLM_MODEL=${VLLM_MODEL:-Qwen/Qwen2.5-32B-Instruct}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - JWT_ALGORITHM=HS256
       - JWT_EXPIRE_MINUTES=60
@@ -63,9 +66,12 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - LLM_BACKEND=${LLM_BACKEND:-ollama}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3:32b}
       - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-bge-m3:latest}
+      - VLLM_BASE_URL=${VLLM_BASE_URL:-http://host.docker.internal:8001/v1}
+      - VLLM_MODEL=${VLLM_MODEL:-Qwen/Qwen2.5-32B-Instruct}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -208,10 +214,39 @@ services:
     restart: unless-stopped
 
   # =============================================================================
-  # AI Services (using local Ollama installation)
+  # AI Services
   # =============================================================================
-  # Note: Ollama runs on host machine, containers access via host.docker.internal:11434
-  # To use containerized Ollama, uncomment below and update OLLAMA_BASE_URL
+  # Note: By default, Ollama/vLLM runs on host machine
+  # Containers access via host.docker.internal
+  #
+  # To use containerized vLLM, uncomment below:
+  #
+  # vllm:
+  #   image: vllm/vllm-openai:latest
+  #   container_name: graphrag-vllm
+  #   ports:
+  #     - "18001:8000"
+  #   volumes:
+  #     - vllm_cache:/root/.cache/huggingface
+  #   environment:
+  #     - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+  #   command: >
+  #     --model ${VLLM_MODEL:-Qwen/Qwen2.5-32B-Instruct}
+  #     --gpu-memory-utilization 0.9
+  #     --max-model-len 8192
+  #     --enable-chunked-prefill
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: all
+  #             capabilities: [gpu]
+  #   networks:
+  #     - graphrag-network
+  #   restart: unless-stopped
+  #
+  # To use containerized Ollama, uncomment below:
   #
   # ollama:
   #   image: ollama/ollama:latest
@@ -245,3 +280,4 @@ volumes:
   qdrant_data:
   redis_data:
   pdf_storage:
+  vllm_cache:
