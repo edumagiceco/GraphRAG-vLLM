@@ -120,6 +120,33 @@ class Message(Base):
         nullable=True,
     )
 
+    # Performance Metrics (nullable for user messages)
+    response_time_ms: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Response generation time in milliseconds",
+    )
+    input_tokens: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Number of input tokens (prompt)",
+    )
+    output_tokens: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Number of output tokens (completion)",
+    )
+    retrieval_count: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Number of retrieved chunks",
+    )
+    retrieval_time_ms: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Context retrieval time in milliseconds",
+    )
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

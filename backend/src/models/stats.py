@@ -58,6 +58,29 @@ class ChatbotStats(Base):
         nullable=True,
     )
 
+    # Token Usage Aggregates
+    total_input_tokens: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        default=0,
+    )
+    total_output_tokens: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        default=0,
+    )
+
+    # Retrieval Aggregates
+    total_retrieval_count: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        default=0,
+    )
+    avg_retrieval_time_ms: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+
     # Relationships
     chatbot: Mapped["ChatbotService"] = relationship(
         "ChatbotService",

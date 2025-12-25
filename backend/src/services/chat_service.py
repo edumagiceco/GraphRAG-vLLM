@@ -278,9 +278,15 @@ class ChatService:
         role: MessageRole,
         content: str,
         sources: Optional[list[dict]] = None,
+        # Performance metrics (for assistant messages)
+        response_time_ms: Optional[int] = None,
+        input_tokens: Optional[int] = None,
+        output_tokens: Optional[int] = None,
+        retrieval_count: Optional[int] = None,
+        retrieval_time_ms: Optional[int] = None,
     ) -> Message:
         """
-        Add a message to a session.
+        Add a message to a session with optional metrics.
 
         Args:
             db: Database session
@@ -288,6 +294,11 @@ class ChatService:
             role: Message role
             content: Message content
             sources: Optional source citations
+            response_time_ms: Response generation time in milliseconds
+            input_tokens: Number of input tokens
+            output_tokens: Number of output tokens
+            retrieval_count: Number of retrieved chunks
+            retrieval_time_ms: Context retrieval time in milliseconds
 
         Returns:
             Created message
@@ -302,6 +313,11 @@ class ChatService:
             role=role,
             content=sanitized_content,
             sources=sanitized_sources,
+            response_time_ms=response_time_ms,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            retrieval_count=retrieval_count,
+            retrieval_time_ms=retrieval_time_ms,
         )
         db.add(message)
         await db.commit()
@@ -400,6 +416,8 @@ class ChatService:
         Yields:
             Stream chunks with type and content
         """
+        from src.core.token_counter import TokenCounter
+
         # Record start time
         start_time = time.time()
 
@@ -414,6 +432,9 @@ class ChatService:
         yield {"type": "thinking_status", "stage": "retrieval", "message": "관련 문서 검색 중..."}
         await asyncio.sleep(0.01)  # Ensure flush to client
 
+        # Record retrieval start time
+        retrieval_start_time = time.time()
+
         # Retrieve context
         retrieval_result = await retrieve_context(
             query=user_message,
@@ -421,9 +442,14 @@ class ChatService:
             include_graph=True,
         )
 
+        # Calculate retrieval time
+        retrieval_time_ms = int((time.time() - retrieval_start_time) * 1000)
+
         context = retrieval_result.get("context", "")
         citations = retrieval_result.get("citations", [])
         vector_count = retrieval_result.get("vector_count", 0)
+        graph_count = retrieval_result.get("graph_count", 0)
+        retrieval_count = vector_count + graph_count
 
         # Check if we have relevant context
         no_relevant_context = vector_count == 0 or not context.strip()
@@ -492,17 +518,36 @@ class ChatService:
 
             # Calculate elapsed time
             elapsed_time = round(time.time() - start_time, 2)
+            response_time_ms = int(elapsed_time * 1000)
 
             # Get actual model from ModelManager (DB setting)
             from src.core.model_manager import ModelManager
             current_model = ModelManager.get_default_llm_model_sync()
 
-            # Send done signal with cleaned content, elapsed time, and model info
+            # Calculate token usage (estimation)
+            # Build input text from system prompt, context, and user message
+            input_text = f"{chatbot.persona.get('system_prompt', '')} {context} {user_message}"
+            token_usage = TokenCounter.calculate_usage(
+                input_text=input_text,
+                output_text=cleaned_response,
+            )
+
+            # Build metrics object
+            metrics = {
+                "response_time_ms": response_time_ms,
+                "input_tokens": token_usage.input_tokens,
+                "output_tokens": token_usage.output_tokens,
+                "retrieval_count": retrieval_count,
+                "retrieval_time_ms": retrieval_time_ms,
+            }
+
+            # Send done signal with cleaned content, elapsed time, model info, and metrics
             yield {
                 "type": "done",
                 "content": cleaned_response,
                 "elapsed_time": elapsed_time,
                 "model": current_model,
+                "metrics": metrics,
             }
 
         except Exception as e:

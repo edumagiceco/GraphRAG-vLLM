@@ -1,5 +1,5 @@
 /**
- * Chatbot statistics page.
+ * Chatbot statistics page with performance metrics and charts.
  */
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
@@ -7,7 +7,27 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import Layout from '@/components/Layout'
 import Button from '@/components/Button'
-import { getChatbotStats, recalculateStats } from '@/services/stats'
+import { MetricCard, ResponseTimeChart, TokenUsageChart } from '@/components/charts'
+import {
+  getChatbotStats,
+  getPerformanceStats,
+  recalculateStats,
+} from '@/services/stats'
+
+function formatTokens(value: number): string {
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(1)}M`
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}K`
+  }
+  return value.toString()
+}
+
+function formatTime(ms: number | null): string {
+  if (ms === null) return 'N/A'
+  return `${(ms / 1000).toFixed(2)}s`
+}
 
 export default function ChatbotStats() {
   const { id } = useParams<{ id: string }>()
@@ -16,11 +36,20 @@ export default function ChatbotStats() {
 
   const {
     data: statsData,
-    isLoading,
-    error,
+    isLoading: statsLoading,
+    error: statsError,
   } = useQuery({
     queryKey: ['chatbot-stats', id, days],
     queryFn: () => getChatbotStats(id!, days),
+    enabled: !!id,
+  })
+
+  const {
+    data: perfData,
+    isLoading: perfLoading,
+  } = useQuery({
+    queryKey: ['chatbot-performance', id, days],
+    queryFn: () => getPerformanceStats(id!, Math.min(days, 90)),
     enabled: !!id,
   })
 
@@ -28,10 +57,11 @@ export default function ChatbotStats() {
     mutationFn: () => recalculateStats(id!, days),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chatbot-stats', id] })
+      queryClient.invalidateQueries({ queryKey: ['chatbot-performance', id] })
     },
   })
 
-  if (isLoading) {
+  if (statsLoading) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-64">
@@ -41,7 +71,7 @@ export default function ChatbotStats() {
     )
   }
 
-  if (error || !statsData) {
+  if (statsError || !statsData) {
     return (
       <Layout>
         <div className="text-center py-12">
@@ -56,8 +86,16 @@ export default function ChatbotStats() {
   }
 
   const { stats, chatbot_name } = statsData
+  const metrics = perfData?.metrics
   const maxMessages = Math.max(...stats.daily_stats.map((d) => d.messages), 1)
   const maxSessions = Math.max(...stats.daily_stats.map((d) => d.sessions), 1)
+
+  // Prepare token usage data for chart
+  const tokenData = stats.daily_stats.map((d) => ({
+    date: d.date,
+    input_tokens: d.input_tokens || 0,
+    output_tokens: d.output_tokens || 0,
+  }))
 
   return (
     <Layout>
@@ -99,37 +137,81 @@ export default function ChatbotStats() {
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="card">
-            <div className="text-sm text-gray-500">총 세션</div>
-            <div className="text-3xl font-bold text-gray-900 mt-1">
-              {stats.total_sessions.toLocaleString()}
-            </div>
-            <div className="text-sm text-gray-500 mt-1">
-              {stats.start_date} - {stats.end_date}
-            </div>
+        {/* Summary Cards - Row 1 */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <MetricCard
+            title="총 세션"
+            value={stats.total_sessions.toLocaleString()}
+            subtitle={`${stats.start_date} - ${stats.end_date}`}
+          />
+          <MetricCard
+            title="총 메시지"
+            value={stats.total_messages.toLocaleString()}
+            subtitle={`일 평균 ~${Math.round(stats.total_messages / stats.period_days)}개`}
+          />
+          <MetricCard
+            title="평균 응답"
+            value={formatTime(stats.avg_response_time_ms)}
+            subtitle={stats.avg_response_time_ms ? `${stats.avg_response_time_ms.toFixed(0)}ms` : '-'}
+          />
+          <MetricCard
+            title="P95 응답"
+            value={formatTime(metrics?.p95_response_time_ms ?? null)}
+            subtitle={perfLoading ? '로딩 중...' : (metrics?.p95_response_time_ms ? `${metrics.p95_response_time_ms.toFixed(0)}ms` : '-')}
+          />
+          <MetricCard
+            title="입력 토큰"
+            value={formatTokens(stats.total_input_tokens || 0)}
+            subtitle={`총 ${(stats.total_input_tokens || 0).toLocaleString()}개`}
+          />
+          <MetricCard
+            title="출력 토큰"
+            value={formatTokens(stats.total_output_tokens || 0)}
+            subtitle={`총 ${(stats.total_output_tokens || 0).toLocaleString()}개`}
+          />
+        </div>
+
+        {/* Performance Metrics Row */}
+        {metrics && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <MetricCard
+              title="P50 응답 시간"
+              value={formatTime(metrics.p50_response_time_ms)}
+              subtitle="중앙값"
+            />
+            <MetricCard
+              title="P99 응답 시간"
+              value={formatTime(metrics.p99_response_time_ms)}
+              subtitle="최상위 1%"
+            />
+            <MetricCard
+              title="평균 검색 청크"
+              value={metrics.avg_retrieval_count?.toFixed(1) ?? 'N/A'}
+              subtitle="응답당 검색된 문서 수"
+            />
+            <MetricCard
+              title="평균 검색 시간"
+              value={formatTime(metrics.avg_retrieval_time_ms ?? null)}
+              subtitle="컨텍스트 검색 시간"
+            />
           </div>
-          <div className="card">
-            <div className="text-sm text-gray-500">총 메시지</div>
-            <div className="text-3xl font-bold text-gray-900 mt-1">
-              {stats.total_messages.toLocaleString()}
-            </div>
-            <div className="text-sm text-gray-500 mt-1">
-              일 평균 ~{Math.round(stats.total_messages / stats.period_days)}개
-            </div>
-          </div>
-          <div className="card">
-            <div className="text-sm text-gray-500">평균 응답 시간</div>
-            <div className="text-3xl font-bold text-gray-900 mt-1">
-              {stats.avg_response_time_ms
-                ? `${(stats.avg_response_time_ms / 1000).toFixed(2)}s`
-                : 'N/A'}
-            </div>
-            <div className="text-sm text-gray-500 mt-1">
-              {stats.avg_response_time_ms ? `${stats.avg_response_time_ms.toFixed(0)}ms` : '-'}
-            </div>
-          </div>
+        )}
+
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Response Time Trend Chart */}
+          {perfData?.response_time_trend && (
+            <ResponseTimeChart
+              data={perfData.response_time_trend}
+              title="응답 시간 추이"
+            />
+          )}
+
+          {/* Token Usage Chart */}
+          <TokenUsageChart
+            data={tokenData}
+            title="토큰 사용량"
+          />
         </div>
 
         {/* Daily Stats Chart */}
@@ -216,6 +298,15 @@ export default function ChatbotStats() {
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     평균 응답
                   </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    입력 토큰
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    출력 토큰
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    검색 수
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -232,6 +323,15 @@ export default function ChatbotStats() {
                       {day.avg_response_time_ms
                         ? `${(day.avg_response_time_ms / 1000).toFixed(2)}s`
                         : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500 text-right">
+                      {(day.input_tokens || 0).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500 text-right">
+                      {(day.output_tokens || 0).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500 text-right">
+                      {day.retrieval_count || 0}
                     </td>
                   </tr>
                 ))}

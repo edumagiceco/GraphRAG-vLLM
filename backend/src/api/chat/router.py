@@ -216,20 +216,29 @@ async def send_message(
                         yield f"data: {json.dumps(chunk)}\n\n"
 
                     elif chunk_type == "done":
-                        # Save assistant message
+                        # Extract metrics from the chunk
+                        metrics = chunk.get("metrics", {})
+
+                        # Save assistant message with metrics
                         assistant_message = await ChatService.add_message(
                             db=db,
                             session_id=session_id,
                             role=DBMessageRole.ASSISTANT,
                             content=full_response,
                             sources=citations,
+                            response_time_ms=metrics.get("response_time_ms"),
+                            input_tokens=metrics.get("input_tokens"),
+                            output_tokens=metrics.get("output_tokens"),
+                            retrieval_count=metrics.get("retrieval_count"),
+                            retrieval_time_ms=metrics.get("retrieval_time_ms"),
                         )
-                        # Include elapsed_time and model from the original chunk
+                        # Include elapsed_time, model and metrics from the original chunk
                         done_response = {
                             'type': 'done',
                             'message_id': assistant_message.id,
                             'elapsed_time': chunk.get('elapsed_time'),
                             'model': chunk.get('model'),
+                            'metrics': metrics,
                         }
                         yield f"data: {json.dumps(done_response)}\n\n"
 
