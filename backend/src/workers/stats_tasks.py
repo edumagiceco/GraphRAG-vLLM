@@ -9,7 +9,7 @@ from sqlalchemy import select, delete, func, and_
 
 from src.core.config import settings
 from src.models.stats import ChatbotStats
-from src.models.conversation import ConversationSession, Message
+from src.models.conversation import ConversationSession, Message, MessageRole
 from src.models.chatbot_service import ChatbotService
 
 logger = logging.getLogger(__name__)
@@ -85,6 +85,59 @@ def aggregate_daily_stats(self) -> dict:
                     )
                 ).scalar() or 0
 
+                # Calculate average response time from assistant messages
+                response_time_result = session.execute(
+                    select(func.avg(Message.response_time_ms))
+                    .join(ConversationSession, Message.session_id == ConversationSession.id)
+                    .where(
+                        and_(
+                            ConversationSession.chatbot_id == chatbot_id,
+                            Message.created_at >= start_of_day,
+                            Message.created_at <= end_of_day,
+                            Message.role == MessageRole.ASSISTANT,
+                            Message.response_time_ms.isnot(None),
+                        )
+                    )
+                ).scalar()
+
+                # Calculate token totals
+                token_result = session.execute(
+                    select(
+                        func.sum(Message.input_tokens),
+                        func.sum(Message.output_tokens),
+                    )
+                    .join(ConversationSession, Message.session_id == ConversationSession.id)
+                    .where(
+                        and_(
+                            ConversationSession.chatbot_id == chatbot_id,
+                            Message.created_at >= start_of_day,
+                            Message.created_at <= end_of_day,
+                            Message.role == MessageRole.ASSISTANT,
+                        )
+                    )
+                ).one()
+                total_input_tokens = token_result[0] or 0
+                total_output_tokens = token_result[1] or 0
+
+                # Calculate retrieval metrics
+                retrieval_result = session.execute(
+                    select(
+                        func.sum(Message.retrieval_count),
+                        func.avg(Message.retrieval_time_ms),
+                    )
+                    .join(ConversationSession, Message.session_id == ConversationSession.id)
+                    .where(
+                        and_(
+                            ConversationSession.chatbot_id == chatbot_id,
+                            Message.created_at >= start_of_day,
+                            Message.created_at <= end_of_day,
+                            Message.role == MessageRole.ASSISTANT,
+                        )
+                    )
+                ).one()
+                total_retrieval_count = retrieval_result[0] or 0
+                avg_retrieval_time = retrieval_result[1]
+
                 # Get or create stats record
                 stats = session.execute(
                     select(ChatbotStats).where(
@@ -98,6 +151,11 @@ def aggregate_daily_stats(self) -> dict:
                 if stats:
                     stats.session_count = session_count
                     stats.message_count = message_count
+                    stats.avg_response_time_ms = int(response_time_result) if response_time_result else None
+                    stats.total_input_tokens = total_input_tokens
+                    stats.total_output_tokens = total_output_tokens
+                    stats.total_retrieval_count = total_retrieval_count
+                    stats.avg_retrieval_time_ms = int(avg_retrieval_time) if avg_retrieval_time else None
                 else:
                     from uuid import uuid4
 
@@ -107,6 +165,11 @@ def aggregate_daily_stats(self) -> dict:
                         date=today,
                         session_count=session_count,
                         message_count=message_count,
+                        avg_response_time_ms=int(response_time_result) if response_time_result else None,
+                        total_input_tokens=total_input_tokens,
+                        total_output_tokens=total_output_tokens,
+                        total_retrieval_count=total_retrieval_count,
+                        avg_retrieval_time_ms=int(avg_retrieval_time) if avg_retrieval_time else None,
                     )
                     session.add(stats)
 
@@ -245,6 +308,59 @@ def recalculate_chatbot_stats(self, chatbot_id: str, days: int = 30) -> dict:
                     )
                 ).scalar() or 0
 
+                # Calculate average response time from assistant messages
+                response_time_result = session.execute(
+                    select(func.avg(Message.response_time_ms))
+                    .join(ConversationSession, Message.session_id == ConversationSession.id)
+                    .where(
+                        and_(
+                            ConversationSession.chatbot_id == chatbot_id,
+                            Message.created_at >= start_of_day,
+                            Message.created_at <= end_of_day,
+                            Message.role == MessageRole.ASSISTANT,
+                            Message.response_time_ms.isnot(None),
+                        )
+                    )
+                ).scalar()
+
+                # Calculate token totals
+                token_result = session.execute(
+                    select(
+                        func.sum(Message.input_tokens),
+                        func.sum(Message.output_tokens),
+                    )
+                    .join(ConversationSession, Message.session_id == ConversationSession.id)
+                    .where(
+                        and_(
+                            ConversationSession.chatbot_id == chatbot_id,
+                            Message.created_at >= start_of_day,
+                            Message.created_at <= end_of_day,
+                            Message.role == MessageRole.ASSISTANT,
+                        )
+                    )
+                ).one()
+                total_input_tokens = token_result[0] or 0
+                total_output_tokens = token_result[1] or 0
+
+                # Calculate retrieval metrics
+                retrieval_result = session.execute(
+                    select(
+                        func.sum(Message.retrieval_count),
+                        func.avg(Message.retrieval_time_ms),
+                    )
+                    .join(ConversationSession, Message.session_id == ConversationSession.id)
+                    .where(
+                        and_(
+                            ConversationSession.chatbot_id == chatbot_id,
+                            Message.created_at >= start_of_day,
+                            Message.created_at <= end_of_day,
+                            Message.role == MessageRole.ASSISTANT,
+                        )
+                    )
+                ).one()
+                total_retrieval_count = retrieval_result[0] or 0
+                avg_retrieval_time = retrieval_result[1]
+
                 # Get or create stats record
                 stats = session.execute(
                     select(ChatbotStats).where(
@@ -258,6 +374,11 @@ def recalculate_chatbot_stats(self, chatbot_id: str, days: int = 30) -> dict:
                 if stats:
                     stats.session_count = session_count
                     stats.message_count = message_count
+                    stats.avg_response_time_ms = int(response_time_result) if response_time_result else None
+                    stats.total_input_tokens = total_input_tokens
+                    stats.total_output_tokens = total_output_tokens
+                    stats.total_retrieval_count = total_retrieval_count
+                    stats.avg_retrieval_time_ms = int(avg_retrieval_time) if avg_retrieval_time else None
                 else:
                     stats = ChatbotStats(
                         id=str(uuid4()),
@@ -265,6 +386,11 @@ def recalculate_chatbot_stats(self, chatbot_id: str, days: int = 30) -> dict:
                         date=stats_date,
                         session_count=session_count,
                         message_count=message_count,
+                        avg_response_time_ms=int(response_time_result) if response_time_result else None,
+                        total_input_tokens=total_input_tokens,
+                        total_output_tokens=total_output_tokens,
+                        total_retrieval_count=total_retrieval_count,
+                        avg_retrieval_time_ms=int(avg_retrieval_time) if avg_retrieval_time else None,
                     )
                     session.add(stats)
 

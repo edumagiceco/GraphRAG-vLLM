@@ -29,10 +29,14 @@ function formatTime(ms: number | null): string {
   return `${(ms / 1000).toFixed(2)}s`
 }
 
+const ITEMS_PER_PAGE = 10
+
 export default function ChatbotStats() {
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
   const [days, setDays] = useState(30)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [showActiveOnly, setShowActiveOnly] = useState(false)
 
   const {
     data: statsData,
@@ -119,7 +123,10 @@ export default function ChatbotStats() {
           <div className="flex items-center gap-3">
             <select
               value={days}
-              onChange={(e) => setDays(Number(e.target.value))}
+              onChange={(e) => {
+                setDays(Number(e.target.value))
+                setCurrentPage(1)
+              }}
               className="rounded-lg border-gray-300 text-sm"
             >
               <option value={7}>최근 7일</option>
@@ -281,63 +288,179 @@ export default function ChatbotStats() {
 
         {/* Daily Stats Table */}
         <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">일별 상세</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    날짜
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    세션
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    메시지
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    평균 응답
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    입력 토큰
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    출력 토큰
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    검색 수
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {[...stats.daily_stats].reverse().map((day) => (
-                  <tr key={day.date} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">{day.date}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                      {day.sessions}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                      {day.messages}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 text-right">
-                      {day.avg_response_time_ms
-                        ? `${(day.avg_response_time_ms / 1000).toFixed(2)}s`
-                        : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 text-right">
-                      {(day.input_tokens || 0).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 text-right">
-                      {(day.output_tokens || 0).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 text-right">
-                      {day.retrieval_count || 0}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">일별 상세</h2>
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showActiveOnly}
+                onChange={(e) => {
+                  setShowActiveOnly(e.target.checked)
+                  setCurrentPage(1)
+                }}
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              활동 있는 날짜만 보기
+            </label>
           </div>
+          {(() => {
+            const reversedStats = [...stats.daily_stats].reverse()
+            const filteredStats = showActiveOnly
+              ? reversedStats.filter((day) => day.sessions > 0 || day.messages > 0)
+              : reversedStats
+            const totalPages = Math.ceil(filteredStats.length / ITEMS_PER_PAGE)
+            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+            const endIndex = startIndex + ITEMS_PER_PAGE
+            const paginatedStats = filteredStats.slice(startIndex, endIndex)
+
+            return (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead>
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          날짜
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          세션
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          메시지
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          평균 응답
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          입력 토큰
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          출력 토큰
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          검색 수
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {paginatedStats.map((day) => (
+                        <tr key={day.date} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-900">{day.date}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                            {day.sessions}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                            {day.messages}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 text-right">
+                            {day.avg_response_time_ms
+                              ? `${(day.avg_response_time_ms / 1000).toFixed(2)}s`
+                              : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 text-right">
+                            {(day.input_tokens || 0).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 text-right">
+                            {(day.output_tokens || 0).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 text-right">
+                            {day.retrieval_count || 0}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Empty State */}
+                {filteredStats.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    {showActiveOnly
+                      ? '이 기간에 활동이 있는 날짜가 없습니다.'
+                      : '이 기간에 대한 데이터가 없습니다.'}
+                  </div>
+                )}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                    <div className="text-sm text-gray-500">
+                      {showActiveOnly && (
+                        <span className="text-primary-600 mr-1">(필터 적용)</span>
+                      )}
+                      총 {filteredStats.length}개 중 {startIndex + 1}-{Math.min(endIndex, filteredStats.length)}개 표시
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(1)}
+                        disabled={currentPage === 1}
+                        className="px-2 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        처음
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        이전
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                          .filter((page) => {
+                            // Show first, last, current, and pages around current
+                            if (page === 1 || page === totalPages) return true
+                            if (Math.abs(page - currentPage) <= 1) return true
+                            return false
+                          })
+                          .reduce<(number | string)[]>((acc, page, idx, arr) => {
+                            // Add ellipsis between non-consecutive pages
+                            if (idx > 0 && page - (arr[idx - 1] as number) > 1) {
+                              acc.push('...')
+                            }
+                            acc.push(page)
+                            return acc
+                          }, [])
+                          .map((item, idx) =>
+                            typeof item === 'string' ? (
+                              <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">
+                                {item}
+                              </span>
+                            ) : (
+                              <button
+                                key={item}
+                                onClick={() => setCurrentPage(item)}
+                                className={`px-3 py-1 text-sm rounded border ${
+                                  currentPage === item
+                                    ? 'bg-primary-600 text-white border-primary-600'
+                                    : 'border-gray-300 hover:bg-gray-50'
+                                }`}
+                              >
+                                {item}
+                              </button>
+                            )
+                          )}
+                      </div>
+                      <button
+                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        다음
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage(totalPages)}
+                        disabled={currentPage === totalPages}
+                        className="px-2 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        마지막
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </div>
 
         {/* Metrics Glossary */}
