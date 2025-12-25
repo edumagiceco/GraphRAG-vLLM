@@ -96,6 +96,7 @@ export default function ChatbotDetail() {
   const deleteMutation = useMutation({
     mutationFn: () => deleteChatbot(id!),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chatbots'] })
       navigate('/admin/chatbots')
     },
   })
