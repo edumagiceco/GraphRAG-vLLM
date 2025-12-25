@@ -14,6 +14,7 @@ from src.core.config import settings
 from src.api.deps import CurrentUser
 from src.models.chatbot_service import ChatbotService, ChatbotStatus
 from src.models.conversation import ConversationSession, Message, MessageRole
+from src.models.document import Document
 from src.models.stats import ChatbotStats
 
 
@@ -210,13 +211,21 @@ async def get_dashboard(
         )
         chatbot_messages = chatbot_messages_result.scalar() or 0
 
+        # Get document count for this chatbot
+        doc_count_result = await db.execute(
+            select(func.count())
+            .select_from(Document)
+            .where(Document.chatbot_id == chatbot.id)
+        )
+        doc_count = doc_count_result.scalar() or 0
+
         recent_chatbots.append(ChatbotSummary(
             id=chatbot.id,
             name=chatbot.name,
             status=chatbot.status.value,
             today_sessions=chatbot_sessions,
             today_messages=chatbot_messages,
-            total_documents=chatbot.document_count or 0,
+            total_documents=doc_count,
         ))
 
     # Check system status
