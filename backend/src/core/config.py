@@ -74,15 +74,23 @@ class Settings(BaseSettings):
     ollama_embedding_model: str = Field(default="bge-m3:latest")
 
     # ==========================================================================
-    # vLLM Server (High Performance)
+    # vLLM Server (LLM + Embeddings)
     # ==========================================================================
     vllm_base_url: str = Field(
-        default="http://localhost:8001/v1",
+        default="http://localhost:8000/v1",
         description="vLLM OpenAI-compatible API endpoint",
     )
     vllm_model: str = Field(
-        default="Qwen/Qwen2.5-32B-Instruct",
+        default="spow12/Ko-Qwen2-7B-Instruct",
         description="HuggingFace model name for vLLM",
+    )
+    vllm_embedding_base_url: str = Field(
+        default="http://localhost:8002/v1",
+        description="vLLM embedding server endpoint",
+    )
+    vllm_embedding_model: str = Field(
+        default="upskyy/bge-m3-korean",
+        description="HuggingFace embedding model name",
     )
 
     # ==========================================================================
@@ -116,8 +124,8 @@ class Settings(BaseSettings):
     # ==========================================================================
     # Document Processing
     # ==========================================================================
-    chunk_size: int = Field(default=1000)
-    chunk_overlap: int = Field(default=200)
+    chunk_size: int = Field(default=500)
+    chunk_overlap: int = Field(default=100)
     max_concurrent_llm_requests: int = Field(default=2)
 
     # ==========================================================================

@@ -423,6 +423,19 @@ class ChatService:
 
         context = retrieval_result.get("context", "")
         citations = retrieval_result.get("citations", [])
+        vector_count = retrieval_result.get("vector_count", 0)
+
+        # Check if we have relevant context
+        no_relevant_context = vector_count == 0 or not context.strip()
+
+        if no_relevant_context:
+            # No relevant context found, return helpful message
+            response = "죄송합니다. 업로드된 문서에서 해당 질문에 대한 관련 정보를 찾을 수 없습니다. 문서와 관련된 다른 질문이 있으시면 말씀해주세요."
+            yield {"type": "content", "content": response}
+            yield {"type": "sources", "sources": []}
+            elapsed_time = round(time.time() - start_time, 2)
+            yield {"type": "done", "content": response, "elapsed_time": elapsed_time, "model": "N/A (no retrieval)"}
+            return
 
         # Send context found signal
         if citations:

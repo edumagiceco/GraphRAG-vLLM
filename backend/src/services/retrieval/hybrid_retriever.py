@@ -26,7 +26,8 @@ class HybridRetriever:
         vector_top_k: int = 5,
         graph_max_hops: int = 2,
         graph_limit_per_entity: int = 5,
-        max_context_length: int = 4000,
+        max_context_length: int = 1500,
+        score_threshold: float = 0.30,
     ):
         """
         Initialize hybrid retriever.
@@ -38,6 +39,7 @@ class HybridRetriever:
             graph_max_hops: Maximum graph traversal depth
             graph_limit_per_entity: Max related entities per starting entity
             max_context_length: Maximum context length
+            score_threshold: Minimum similarity score threshold
         """
         self._vector_search = vector_search
         self._graph_expansion = graph_expansion
@@ -45,6 +47,7 @@ class HybridRetriever:
         self.graph_max_hops = graph_max_hops
         self.graph_limit_per_entity = graph_limit_per_entity
         self.max_context_length = max_context_length
+        self.score_threshold = score_threshold
 
     async def _get_vector_search(self) -> VectorSearch:
         """Get vector search service."""
@@ -126,12 +129,13 @@ class HybridRetriever:
         Returns:
             Dict with context, citations, and metadata
         """
-        # Step 1: Vector search
+        # Step 1: Vector search with score threshold
         vector_search = await self._get_vector_search()
         vector_results = await vector_search.search(
             query=query,
             chatbot_id=chatbot_id,
             top_k=self.vector_top_k,
+            score_threshold=self.score_threshold,
         )
 
         graph_results = []
