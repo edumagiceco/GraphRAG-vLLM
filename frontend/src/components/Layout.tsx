@@ -76,7 +76,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* Logo */}
         <div className="flex items-center justify-center h-16 border-b border-gray-200">
           <Link to="/admin" className="text-xl font-bold text-primary-600">
-            GraphRAG 관리자
+            AI 어시스턴트 관리자
           </Link>
         </div>
 

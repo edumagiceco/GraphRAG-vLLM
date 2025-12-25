@@ -135,6 +135,7 @@ API_V1_PREFIX = "/api/v1"
 from src.api.auth.router import router as auth_router
 from src.api.admin.chatbot_router import router as chatbot_router
 from src.api.admin.document_router import router as document_router
+from src.api.admin.dashboard_router import router as dashboard_router
 from src.api.chat.router import router as chat_router
 from src.api.admin.stats_router import router as stats_router
 from src.api.admin.version_router import router as version_router
@@ -142,6 +143,7 @@ from src.api.admin.settings_router import router as settings_router
 from src.api.health import router as health_router
 
 app.include_router(auth_router, prefix=f"{API_V1_PREFIX}/auth", tags=["Auth"])
+app.include_router(dashboard_router, prefix=f"{API_V1_PREFIX}/admin", tags=["Dashboard"])
 app.include_router(chatbot_router, prefix=f"{API_V1_PREFIX}/chatbots", tags=["Chatbots"])
 app.include_router(document_router, prefix=f"{API_V1_PREFIX}/chatbots", tags=["Documents"])
 app.include_router(chat_router, prefix=f"{API_V1_PREFIX}/chat", tags=["Chat"])

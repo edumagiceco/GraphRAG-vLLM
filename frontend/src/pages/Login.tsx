@@ -44,7 +44,7 @@ export default function Login() {
         {/* Header */}
         <div>
           <h1 className="text-center text-3xl font-bold text-gray-900">
-            GraphRAG Chatbot
+            AI 어시스턴트
           </h1>
           <h2 className="mt-2 text-center text-xl text-gray-600">
             관리자 로그인

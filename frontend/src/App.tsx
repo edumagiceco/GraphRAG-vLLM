@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { isAuthenticated } from '@/services/api'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Login from '@/pages/Login'
+import Dashboard from '@/pages/admin/Dashboard'
 import ChatbotList from '@/pages/admin/ChatbotList'
 import ChatbotCreate from '@/pages/admin/ChatbotCreate'
 import ChatbotDetail from '@/pages/admin/ChatbotDetail'
@@ -69,7 +70,7 @@ function App() {
 
           {/* Protected admin routes */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/admin" element={<Navigate to="/admin/chatbots" replace />} />
+            <Route path="/admin" element={<Dashboard />} />
             <Route path="/admin/chatbots" element={<ChatbotList />} />
             <Route path="/admin/chatbots/new" element={<ChatbotCreate />} />
             <Route path="/admin/chatbots/:id" element={<ChatbotDetail />} />

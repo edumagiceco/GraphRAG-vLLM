@@ -201,7 +201,7 @@ export default function ChatbotList() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">챗봇</h1>
           <p className="text-gray-600 mt-1">
-            GraphRAG 챗봇 서비스를 관리하세요
+            AI 어시스턴트 챗봇 서비스를 관리하세요
           </p>
         </div>
         <Link to="/admin/chatbots/new">

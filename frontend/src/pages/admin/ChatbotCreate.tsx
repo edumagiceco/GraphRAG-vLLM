@@ -110,7 +110,7 @@ export default function ChatbotCreate() {
         </button>
         <h1 className="text-2xl font-bold text-gray-900">챗봇 생성</h1>
         <p className="text-gray-600 mt-1">
-          새로운 GraphRAG 챗봇 서비스를 설정하세요
+          새로운 AI 어시스턴트 챗봇 서비스를 설정하세요
         </p>
       </div>
 
