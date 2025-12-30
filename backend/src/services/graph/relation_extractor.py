@@ -154,9 +154,12 @@ Return format (JSON array):
     {{"source": "entity1", "target": "entity2", "type": "RELATIONSHIP_TYPE"}}
 ]
 
-Rules:
-- Only use entities from the provided list
-- Extract 5-20 most important relationships
+CRITICAL Rules:
+- ONLY use entity names from the "Available entities" list above
+- Do NOT use article numbers (제1조, 제2조, Article 1, etc.) as source or target
+- Do NOT use section numbers, clause numbers, or any numbered references
+- Source and target MUST be actual entity names from the list
+- Extract 5-20 most important relationships between the listed entities
 - Source and target must be different entities
 - Only return valid JSON array, no other text
 - Do NOT include any text before or after the JSON array

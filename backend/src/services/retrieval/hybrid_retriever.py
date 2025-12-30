@@ -26,7 +26,7 @@ class HybridRetriever:
         vector_top_k: int = 5,
         graph_max_hops: int = 2,
         graph_limit_per_entity: int = 5,
-        max_context_length: int = 1500,
+        max_context_length: int = 2000,
         score_threshold: float = 0.15,
     ):
         """
