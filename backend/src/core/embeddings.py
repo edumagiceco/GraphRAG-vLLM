@@ -5,12 +5,30 @@ Provides unified interface for generating text embeddings.
 import logging
 from typing import Optional
 
+import numpy as np
 from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
 
 from src.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_embedding(embedding: list[float]) -> list[float]:
+    """
+    L2 normalize an embedding vector.
+
+    Args:
+        embedding: Raw embedding vector
+
+    Returns:
+        Normalized embedding vector with unit length (L2 norm = 1)
+    """
+    arr = np.array(embedding, dtype=np.float32)
+    norm = np.linalg.norm(arr)
+    if norm > 0:
+        arr = arr / norm
+    return arr.tolist()
 
 
 class EmbeddingModel:
@@ -115,11 +133,11 @@ class EmbeddingModel:
             text: Input text to embed
 
         Returns:
-            Embedding vector as list of floats
+            Embedding vector as list of floats (L2 normalized)
         """
         # Use async method if available, otherwise use sync
         embeddings = await self._embeddings.aembed_documents([text])
-        return embeddings[0]
+        return _normalize_embedding(embeddings[0])
 
     async def embed_texts(self, texts: list[str]) -> list[list[float]]:
         """
@@ -129,9 +147,10 @@ class EmbeddingModel:
             texts: List of texts to embed
 
         Returns:
-            List of embedding vectors
+            List of embedding vectors (L2 normalized)
         """
-        return await self._embeddings.aembed_documents(texts)
+        embeddings = await self._embeddings.aembed_documents(texts)
+        return [_normalize_embedding(emb) for emb in embeddings]
 
     async def embed_query(self, query: str) -> list[float]:
         """
@@ -142,9 +161,10 @@ class EmbeddingModel:
             query: Query text to embed
 
         Returns:
-            Query embedding vector
+            Query embedding vector (L2 normalized)
         """
-        return await self._embeddings.aembed_query(query)
+        embedding = await self._embeddings.aembed_query(query)
+        return _normalize_embedding(embedding)
 
     def embed_text_sync(self, text: str) -> list[float]:
         """
@@ -154,10 +174,10 @@ class EmbeddingModel:
             text: Input text to embed
 
         Returns:
-            Embedding vector
+            Embedding vector (L2 normalized)
         """
         embeddings = self._embeddings.embed_documents([text])
-        return embeddings[0]
+        return _normalize_embedding(embeddings[0])
 
     def embed_texts_sync(self, texts: list[str]) -> list[list[float]]:
         """
@@ -167,9 +187,10 @@ class EmbeddingModel:
             texts: List of texts to embed
 
         Returns:
-            List of embedding vectors
+            List of embedding vectors (L2 normalized)
         """
-        return self._embeddings.embed_documents(texts)
+        embeddings = self._embeddings.embed_documents(texts)
+        return [_normalize_embedding(emb) for emb in embeddings]
 
 
 # Alias for backwards compatibility

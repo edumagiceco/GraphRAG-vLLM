@@ -250,8 +250,13 @@ class ModelManager:
             "Embedding model for vector generation"
         )
 
-        # Try to get and cache the new dimension
-        dimension = await cls.get_embedding_dimension_from_ollama(model)
+        # Try to get and cache the new dimension based on backend
+        dimension = None
+        if settings.llm_backend == "vllm":
+            dimension = await cls.get_embedding_dimension_from_vllm(model)
+        else:
+            dimension = await cls.get_embedding_dimension_from_ollama(model)
+
         if dimension:
             await cls.set_setting(
                 SettingKeys.EMBEDDING_DIMENSION,
@@ -281,8 +286,13 @@ class ModelManager:
             except ValueError:
                 pass
 
-        # Try from Ollama API
-        dim = await cls.get_embedding_dimension_from_ollama(current_model)
+        # Try from appropriate API based on backend
+        dim = None
+        if settings.llm_backend == "vllm":
+            dim = await cls.get_embedding_dimension_from_vllm(current_model)
+        else:
+            dim = await cls.get_embedding_dimension_from_ollama(current_model)
+
         if dim:
             cls._embedding_dimension_cache[current_model] = dim
             # Update settings cache for sync methods
@@ -292,6 +302,26 @@ class ModelManager:
         # Default fallback (bge-m3)
         logger.warning(f"Could not determine dimension for {current_model}, using default 1024")
         return 1024
+
+    @classmethod
+    async def get_embedding_dimension_from_vllm(cls, model: str) -> Optional[int]:
+        """Query vLLM API for model embedding dimension by making a test embedding request."""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{settings.vllm_embedding_base_url}/embeddings",
+                    json={"model": model, "input": "test"},
+                    timeout=10.0,
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    embeddings = data.get("data", [])
+                    if embeddings and "embedding" in embeddings[0]:
+                        return len(embeddings[0]["embedding"])
+        except Exception as e:
+            logger.warning(f"Failed to get embedding dimension from vLLM: {e}")
+
+        return None
 
     @classmethod
     async def get_embedding_dimension_from_ollama(cls, model: str) -> Optional[int]:

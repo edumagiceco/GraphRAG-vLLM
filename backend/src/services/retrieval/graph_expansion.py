@@ -43,6 +43,8 @@ class GraphExpansion:
         """
         Find entities matching given terms (fuzzy match).
 
+        Searches in both entity name and description for better matching.
+
         Args:
             terms: Search terms to match
             chatbot_id: Chatbot ID
@@ -55,14 +57,21 @@ class GraphExpansion:
             return []
 
         async with self._driver.session() as session:
-            # Case-insensitive partial match
+            # Search in both name and description for better matching
+            # Score: name match = 2, description match = 1
             query = """
             MATCH (e {chatbot_id: $chatbot_id})
-            WHERE any(term IN $terms WHERE toLower(e.name) CONTAINS toLower(term))
+            WITH e,
+                 CASE WHEN any(term IN $terms WHERE toLower(e.name) CONTAINS toLower(term)) THEN 2 ELSE 0 END +
+                 CASE WHEN any(term IN $terms WHERE e.description IS NOT NULL AND toLower(e.description) CONTAINS toLower(term)) THEN 1 ELSE 0 END
+                 AS match_score
+            WHERE match_score > 0
             RETURN e.name as name,
                    labels(e)[0] as type,
                    e.description as description,
-                   e.document_id as document_id
+                   e.document_id as document_id,
+                   match_score
+            ORDER BY match_score DESC
             LIMIT $limit
             """
 
