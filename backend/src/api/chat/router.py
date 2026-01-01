@@ -16,7 +16,9 @@ from src.api.chat.schemas import (
     MessageRole,
 )
 from src.services.chat_service import ChatService
+from src.services.stats_service import StatsService
 from src.models.conversation import MessageRole as DBMessageRole
+from src.core.redis import RedisClient
 
 router = APIRouter()
 
@@ -69,13 +71,15 @@ async def create_session(
     """
     Create a new chat session.
 
+    If initial_message is provided, automatically generates a response.
+
     Args:
         access_url: Chatbot access URL
-        request: Optional session creation request
+        request: Optional session creation request with initial message
         db: Database session
 
     Returns:
-        Created session info
+        Created session info with optional initial response
     """
     chatbot = await get_active_chatbot(access_url, db)
 
@@ -84,11 +88,60 @@ async def create_session(
         chatbot_id=chatbot.id,
     )
 
+    initial_response = None
+    message_count = 0
+
+    # Process initial message if provided
+    if request and request.initial_message:
+        # Save user message
+        await ChatService.add_message(
+            db=db,
+            session_id=session.id,
+            role=DBMessageRole.USER,
+            content=request.initial_message,
+        )
+        message_count += 1
+
+        # Update daily message count for user message
+        await StatsService.increment_message_count(db, chatbot.id, count=1)
+
+        # Generate response (non-streaming for session creation)
+        response_text, citations = await ChatService.generate_response(
+            db=db,
+            session_id=session.id,
+            chatbot=chatbot,
+            user_message=request.initial_message,
+        )
+
+        # Save assistant message
+        assistant_message = await ChatService.add_message(
+            db=db,
+            session_id=session.id,
+            role=DBMessageRole.ASSISTANT,
+            content=response_text,
+            sources=citations,
+        )
+        message_count += 1
+
+        # Update daily message count for assistant message
+        await StatsService.increment_message_count(db, chatbot.id, count=1)
+
+        # Build initial response
+        initial_response = MessageResponse(
+            id=assistant_message.id,
+            session_id=session.id,
+            role=MessageRole.ASSISTANT,
+            content=response_text,
+            sources=citations,
+            created_at=assistant_message.created_at,
+        )
+
     return SessionResponse(
         id=session.id,
         chatbot_id=session.chatbot_id,
         started_at=session.created_at,
-        message_count=0,
+        message_count=message_count,
+        initial_response=initial_response,
     )
 
 
@@ -186,6 +239,9 @@ async def send_message(
         content=request.content,
     )
 
+    # Update daily message count for user message
+    await StatsService.increment_message_count(db, chatbot.id, count=1)
+
     if request.stream:
         # Return SSE stream
         async def generate_sse():
@@ -232,6 +288,10 @@ async def send_message(
                             retrieval_count=metrics.get("retrieval_count"),
                             retrieval_time_ms=metrics.get("retrieval_time_ms"),
                         )
+
+                        # Update daily message count for assistant message
+                        await StatsService.increment_message_count(db, chatbot.id, count=1)
+
                         # Include elapsed_time, model and metrics from the original chunk
                         done_response = {
                             'type': 'done',
@@ -275,6 +335,9 @@ async def send_message(
             sources=citations,
         )
 
+        # Update daily message count for assistant message
+        await StatsService.increment_message_count(db, chatbot.id, count=1)
+
         return MessageResponse(
             id=assistant_message.id,
             session_id=session_id,
@@ -300,8 +363,8 @@ async def stop_generation(
         db: Database session
 
     Note:
-        This endpoint signals the server to stop generating.
-        Client should close the SSE connection.
+        This endpoint sets a cancellation token in Redis.
+        The streaming generator checks this token and stops if set.
     """
     chatbot = await get_active_chatbot(access_url, db)
 
@@ -317,7 +380,6 @@ async def stop_generation(
             detail="Session not found",
         )
 
-    # Signal stop - in a production system, this would set a flag
-    # that the streaming generator checks
-    # For now, the client can simply close the SSE connection
-    pass
+    # Set cancellation token in Redis
+    # The streaming generator will check this and stop
+    await RedisClient.set_cancel_token(session_id, expire_seconds=60)

@@ -118,8 +118,18 @@ class Settings(BaseSettings):
     # ==========================================================================
     # Rate Limiting
     # ==========================================================================
-    rate_limit_requests: int = Field(default=100)
-    rate_limit_window_seconds: int = Field(default=60)
+    rate_limit_enabled: bool = Field(
+        default=True,
+        description="Enable rate limiting middleware",
+    )
+    rate_limit_per_minute: int = Field(
+        default=60,
+        description="Maximum requests per minute per client",
+    )
+    rate_limit_per_hour: int = Field(
+        default=1000,
+        description="Maximum requests per hour per client",
+    )
 
     # ==========================================================================
     # Document Processing

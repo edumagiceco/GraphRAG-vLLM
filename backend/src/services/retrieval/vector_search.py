@@ -1,6 +1,7 @@
 """
 Vector search service using Qdrant.
 """
+import asyncio
 from typing import Optional
 
 from qdrant_client import QdrantClient
@@ -12,8 +13,6 @@ from src.core.embeddings import get_embedding_model
 
 class VectorSearch:
     """Service for vector similarity search in Qdrant."""
-
-    COLLECTION_NAME = "document_chunks"
 
     def __init__(self, qdrant_client: Optional[QdrantClient] = None):
         """
@@ -31,6 +30,11 @@ class VectorSearch:
             )
 
         self._embedding_model = get_embedding_model()
+
+    @property
+    def collection_name(self) -> str:
+        """Get collection name from settings."""
+        return settings.qdrant_collection_name
 
     async def search(
         self,
@@ -54,9 +58,10 @@ class VectorSearch:
         # Generate query embedding
         query_embedding = await self._embedding_model.embed_query(query)
 
-        # Search in Qdrant
-        results = self._client.search(
-            collection_name=self.COLLECTION_NAME,
+        # Run synchronous Qdrant search in thread pool to avoid blocking event loop
+        results = await asyncio.to_thread(
+            self._client.search,
+            collection_name=self.collection_name,
             query_vector=query_embedding,
             query_filter=Filter(
                 must=[
@@ -107,7 +112,7 @@ class VectorSearch:
 
         # Search
         results = self._client.search(
-            collection_name=self.COLLECTION_NAME,
+            collection_name=self.collection_name,
             query_vector=query_embedding,
             query_filter=Filter(
                 must=[

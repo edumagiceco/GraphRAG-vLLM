@@ -21,8 +21,6 @@ from src.core.embeddings import get_embedding_model, VECTOR_DIMENSION
 class DocumentEmbedder:
     """Service for embedding documents and storing in Qdrant."""
 
-    COLLECTION_NAME = "document_chunks"
-
     def __init__(self, qdrant_client: Optional[QdrantClient] = None):
         """
         Initialize document embedder.
@@ -41,14 +39,19 @@ class DocumentEmbedder:
         self._embedding_model = get_embedding_model()
         self._ensure_collection()
 
+    @property
+    def collection_name(self) -> str:
+        """Get collection name from settings."""
+        return settings.qdrant_collection_name
+
     def _ensure_collection(self) -> None:
         """Ensure the collection exists in Qdrant."""
         collections = self._client.get_collections().collections
         collection_names = [c.name for c in collections]
 
-        if self.COLLECTION_NAME not in collection_names:
+        if self.collection_name not in collection_names:
             self._client.create_collection(
-                collection_name=self.COLLECTION_NAME,
+                collection_name=self.collection_name,
                 vectors_config=VectorParams(
                     size=VECTOR_DIMENSION,
                     distance=Distance.COSINE,
@@ -105,7 +108,7 @@ class DocumentEmbedder:
 
             # Upsert to Qdrant
             self._client.upsert(
-                collection_name=self.COLLECTION_NAME,
+                collection_name=self.collection_name,
                 points=points,
             )
 
@@ -135,7 +138,7 @@ class DocumentEmbedder:
 
         # Search
         results = self._client.search(
-            collection_name=self.COLLECTION_NAME,
+            collection_name=self.collection_name,
             query_vector=query_embedding,
             query_filter=Filter(
                 must=[
@@ -175,7 +178,7 @@ class DocumentEmbedder:
         """
         # Get points to delete
         scroll_result = self._client.scroll(
-            collection_name=self.COLLECTION_NAME,
+            collection_name=self.collection_name,
             scroll_filter=Filter(
                 must=[
                     FieldCondition(
@@ -192,7 +195,7 @@ class DocumentEmbedder:
 
         if point_ids:
             self._client.delete(
-                collection_name=self.COLLECTION_NAME,
+                collection_name=self.collection_name,
                 points_selector=point_ids,
             )
 
@@ -210,7 +213,7 @@ class DocumentEmbedder:
         """
         # Get all points for chatbot
         scroll_result = self._client.scroll(
-            collection_name=self.COLLECTION_NAME,
+            collection_name=self.collection_name,
             scroll_filter=Filter(
                 must=[
                     FieldCondition(
@@ -227,7 +230,7 @@ class DocumentEmbedder:
 
         if point_ids:
             self._client.delete(
-                collection_name=self.COLLECTION_NAME,
+                collection_name=self.collection_name,
                 points_selector=point_ids,
             )
 
@@ -244,7 +247,7 @@ class DocumentEmbedder:
             Number of chunks
         """
         result = self._client.count(
-            collection_name=self.COLLECTION_NAME,
+            collection_name=self.collection_name,
             count_filter=Filter(
                 must=[
                     FieldCondition(

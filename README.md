@@ -11,6 +11,7 @@ GraphRAG(Graph Retrieval Augmented Generation) 기반의 지능형 챗봇 플랫
 - **관리자 대시보드**: 문서, 챗봇, 시스템 설정 관리
 - **실시간 채팅**: 스트리밍 응답 지원
 - **성능 모니터링**: 응답 시간, 토큰 사용량, 검색 메트릭 대시보드
+- **API 레이트 리미팅**: Redis 기반 요청 제한으로 리소스 보호
 
 ## 기술 스택
 
@@ -115,6 +116,11 @@ VLLM_BASE_URL=http://vllm:8000/v1
 VLLM_MODEL=spow12/Ko-Qwen2-7B-Instruct
 VLLM_EMBEDDING_BASE_URL=http://vllm-embedding:8000/v1
 VLLM_EMBEDDING_MODEL=upskyy/bge-m3-korean
+
+# Rate Limiting
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_PER_MINUTE=60
+RATE_LIMIT_PER_HOUR=1000
 ```
 
 ### 3. 서비스 시작
@@ -205,6 +211,52 @@ GraphRAG-vLLM/
 3. **그래프 검색**: Neo4j에서 관련 엔티티 및 관계 검색
 4. **컨텍스트 구성**: 검색 결과를 LLM 프롬프트에 통합
 5. **응답 생성**: vLLM을 통한 답변 생성
+
+## API 레이트 리미팅
+
+Redis 기반 토큰 버킷 알고리즘을 사용하여 API 요청을 제한합니다. 이를 통해 단일 사용자가 GPU/DB 리소스를 과도하게 사용하는 것을 방지합니다.
+
+### 기본 설정
+
+| 설정 | 기본값 | 설명 |
+|------|--------|------|
+| `RATE_LIMIT_ENABLED` | `true` | 레이트 리미팅 활성화 여부 |
+| `RATE_LIMIT_PER_MINUTE` | `60` | 클라이언트당 분당 최대 요청 수 |
+| `RATE_LIMIT_PER_HOUR` | `1000` | 클라이언트당 시간당 최대 요청 수 |
+
+### 제외 경로
+
+다음 경로는 레이트 리미팅에서 제외됩니다:
+- `/` - 루트 엔드포인트
+- `/health` - 헬스체크
+- `/docs`, `/redoc`, `/openapi.json` - API 문서
+- `*/health` - 모든 헬스체크 엔드포인트
+
+### 응답 헤더
+
+레이트 리미팅이 적용된 응답에는 다음 헤더가 포함됩니다:
+
+| 헤더 | 설명 |
+|------|------|
+| `X-RateLimit-Limit-Minute` | 분당 허용 요청 수 |
+| `X-RateLimit-Remaining-Minute` | 현재 분에 남은 요청 수 |
+
+### 요청 제한 초과 시
+
+요청 제한을 초과하면 `429 Too Many Requests` 응답이 반환됩니다:
+
+```json
+{
+  "detail": "Rate limit exceeded. Please try again later."
+}
+```
+
+응답에는 `Retry-After` 헤더가 포함되어 다음 요청까지 대기해야 하는 시간(초)을 알려줍니다.
+
+### 클라이언트 식별
+
+- **인증된 사용자**: Bearer 토큰 해시값으로 식별
+- **비인증 사용자**: IP 주소로 식별 (`X-Forwarded-For` 헤더 지원)
 
 ## 성능 모니터링 대시보드
 

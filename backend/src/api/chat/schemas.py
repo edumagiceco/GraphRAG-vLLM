@@ -51,6 +51,10 @@ class SessionResponse(BaseModel):
     chatbot_id: str = Field(..., description="Chatbot ID")
     started_at: datetime = Field(..., description="Session start time")
     message_count: int = Field(default=0, description="Number of messages")
+    initial_response: Optional["MessageResponse"] = Field(
+        None,
+        description="Response to initial message if provided",
+    )
 
     model_config = {"from_attributes": True}
 

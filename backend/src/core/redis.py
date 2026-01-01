@@ -184,6 +184,52 @@ class RedisClient:
         await cls.delete(key)
 
     # =========================================================================
+    # Streaming Cancellation Token
+    # =========================================================================
+
+    @classmethod
+    def get_cancel_key(cls, session_id: str) -> str:
+        """Get Redis key for streaming cancellation."""
+        return f"stream_cancel:{session_id}"
+
+    @classmethod
+    async def set_cancel_token(cls, session_id: str, expire_seconds: int = 60) -> None:
+        """
+        Set cancellation token for a streaming session.
+
+        Args:
+            session_id: Session ID
+            expire_seconds: Token expiration time (default 60s)
+        """
+        key = cls.get_cancel_key(session_id)
+        await cls.set(key, "1", expire_seconds=expire_seconds)
+
+    @classmethod
+    async def is_cancelled(cls, session_id: str) -> bool:
+        """
+        Check if streaming session is cancelled.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            True if cancelled, False otherwise
+        """
+        key = cls.get_cancel_key(session_id)
+        return await cls.exists(key)
+
+    @classmethod
+    async def clear_cancel_token(cls, session_id: str) -> None:
+        """
+        Clear cancellation token after streaming ends.
+
+        Args:
+            session_id: Session ID
+        """
+        key = cls.get_cancel_key(session_id)
+        await cls.delete(key)
+
+    # =========================================================================
     # Pub/Sub Operations
     # =========================================================================
 

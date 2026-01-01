@@ -211,6 +211,8 @@ class ChatService:
         Returns:
             Created session
         """
+        from src.services.stats_service import StatsService
+
         session = ConversationSession(
             id=str(uuid.uuid4()),
             chatbot_id=chatbot_id,
@@ -218,6 +220,10 @@ class ChatService:
         db.add(session)
         await db.commit()
         await db.refresh(session)
+
+        # Update daily stats - increment session count
+        await StatsService.increment_session_count(db, chatbot_id)
+
         return session
 
     @staticmethod
@@ -320,6 +326,13 @@ class ChatService:
             retrieval_time_ms=retrieval_time_ms,
         )
         db.add(message)
+
+        # Update session message_count
+        session = await db.get(ConversationSession, session_id)
+        if session:
+            session.message_count += 1
+            session.extend_expiration()  # Keep session alive
+
         await db.commit()
         await db.refresh(message)
         return message
@@ -332,6 +345,7 @@ class ChatService:
     ) -> list[dict]:
         """
         Get chat history formatted for LLM.
+        Returns the most recent N messages in chronological order.
 
         Args:
             db: Database session
@@ -339,11 +353,19 @@ class ChatService:
             max_messages: Maximum messages to include
 
         Returns:
-            List of message dicts
+            List of message dicts (oldest to newest within the window)
         """
-        messages = await ChatService.get_session_messages(
-            db, session_id, limit=max_messages
+        # Get the most recent messages by sorting DESC, then reverse for chronological order
+        result = await db.execute(
+            select(Message)
+            .where(Message.session_id == session_id)
+            .order_by(Message.created_at.desc())
+            .limit(max_messages)
         )
+        messages = list(result.scalars().all())
+
+        # Reverse to get chronological order (oldest first within the window)
+        messages.reverse()
 
         return [
             {
@@ -417,13 +439,24 @@ class ChatService:
             Stream chunks with type and content
         """
         from src.core.token_counter import TokenCounter
+        from src.core.redis import RedisClient
 
         # Record start time
         start_time = time.time()
 
+        # Helper to check cancellation
+        async def is_cancelled() -> bool:
+            return await RedisClient.is_cancelled(session_id)
+
         # Send thinking/reasoning start signal
         yield {"type": "thinking_status", "stage": "history", "message": "대화 기록 분석 중..."}
         await asyncio.sleep(0.01)  # Ensure flush to client
+
+        # Check cancellation before proceeding
+        if await is_cancelled():
+            yield {"type": "cancelled", "message": "응답 생성이 취소되었습니다."}
+            await RedisClient.clear_cancel_token(session_id)
+            return
 
         # Get chat history
         chat_history = await ChatService.get_chat_history(db, session_id)
@@ -431,6 +464,12 @@ class ChatService:
         # Send retrieval stage
         yield {"type": "thinking_status", "stage": "retrieval", "message": "관련 문서 검색 중..."}
         await asyncio.sleep(0.01)  # Ensure flush to client
+
+        # Check cancellation before retrieval
+        if await is_cancelled():
+            yield {"type": "cancelled", "message": "응답 생성이 취소되었습니다."}
+            await RedisClient.clear_cancel_token(session_id)
+            return
 
         # Record retrieval start time
         retrieval_start_time = time.time()
@@ -473,6 +512,12 @@ class ChatService:
             }
             await asyncio.sleep(0.01)  # Ensure flush to client
 
+        # Check cancellation before generating
+        if await is_cancelled():
+            yield {"type": "cancelled", "message": "응답 생성이 취소되었습니다."}
+            await RedisClient.clear_cancel_token(session_id)
+            return
+
         # Send generating stage
         yield {"type": "thinking_status", "stage": "generating", "message": "답변 생성 중..."}
         await asyncio.sleep(0.01)  # Ensure flush to client
@@ -481,6 +526,8 @@ class ChatService:
         generator = get_answer_generator()
         think_filter = StreamingThinkFilter()
         streamed_content = ""
+        chunk_count = 0
+        cancelled = False
 
         try:
             # Stream response in real-time with thinking filter
@@ -491,11 +538,24 @@ class ChatService:
                 citations=citations,
                 chat_history=chat_history,
             ):
+                # Check cancellation every 10 chunks to minimize Redis calls
+                chunk_count += 1
+                if chunk_count % 10 == 0:
+                    if await is_cancelled():
+                        cancelled = True
+                        break
+
                 # Filter thinking content in real-time
                 filtered_chunk = think_filter.process_chunk(chunk)
                 if filtered_chunk:
                     streamed_content += filtered_chunk
                     yield {"type": "content", "content": filtered_chunk}
+
+            # Handle cancellation
+            if cancelled:
+                yield {"type": "cancelled", "message": "응답 생성이 취소되었습니다."}
+                await RedisClient.clear_cancel_token(session_id)
+                return
 
             # Flush any remaining content in buffer
             remaining = think_filter.flush()
@@ -550,7 +610,12 @@ class ChatService:
                 "metrics": metrics,
             }
 
+            # Clear any lingering cancel token
+            await RedisClient.clear_cancel_token(session_id)
+
         except Exception as e:
+            # Clear cancel token on error
+            await RedisClient.clear_cancel_token(session_id)
             yield {"type": "error", "error": str(e)}
 
     @staticmethod

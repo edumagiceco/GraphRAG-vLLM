@@ -13,6 +13,7 @@ from src.core.neo4j import Neo4jClient
 from src.core.redis import RedisClient
 from src.core.logging import setup_logging, setup_request_logging
 from src.core.exceptions import setup_exception_handlers
+from src.core.rate_limit import setup_rate_limiting
 
 
 # Setup logging before anything else
@@ -121,6 +122,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Setup rate limiting middleware
+setup_rate_limiting(app, enabled=settings.rate_limit_enabled)
 
 
 # =============================================================================

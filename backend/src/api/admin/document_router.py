@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.core.redis import RedisClient
+from src.core.config import settings
 from src.api.deps import CurrentUser
 from src.api.admin.document_schemas import (
     DocumentResponse,
@@ -533,7 +534,7 @@ async def get_document_graph_details(
         from qdrant_client.http import models as qdrant_models
 
         client = QdrantManager.get_client()
-        collection_name = "document_chunks"
+        collection_name = settings.qdrant_collection_name
 
         # Check if collection exists
         collections = client.get_collections().collections
