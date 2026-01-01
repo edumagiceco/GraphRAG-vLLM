@@ -6,21 +6,18 @@ Measures response quality and latency.
 """
 
 import json
+import os
 import time
 import requests
 from datetime import datetime
+from pathlib import Path
 
-# Configuration
-BASE_URL = "http://localhost:18000"
-ACCESS_URL = "hr-policy"
+# Configuration from environment variables with defaults
+BASE_URL = os.getenv("TEST_BASE_URL", "http://localhost:18000")
+ACCESS_URL = os.getenv("TEST_ACCESS_URL", "hr-policy")
 
-def get_token():
-    """Get authentication token."""
-    response = requests.post(
-        f"{BASE_URL}/api/v1/auth/login",
-        json={"email": "admin@example.com", "password": "Admin123456"}
-    )
-    return response.json()["access_token"]
+# Project root directory (relative to this script)
+PROJECT_ROOT = Path(__file__).parent
 
 def create_session():
     """Create a new chat session."""
@@ -66,8 +63,14 @@ def check_keywords(response: str, expected_keywords: list) -> tuple:
 
 def run_tests():
     """Run all test cases and collect results."""
-    # Load test cases
-    with open("/home/magic/work/GraphRAG/test_cases.json", "r") as f:
+    # Load test cases from project directory
+    test_cases_path = PROJECT_ROOT / "test_cases.json"
+    if not test_cases_path.exists():
+        print(f"Error: Test cases file not found at {test_cases_path}")
+        print("Please create test_cases.json with your test cases.")
+        return []
+
+    with open(test_cases_path, "r", encoding="utf-8") as f:
         test_data = json.load(f)
 
     test_cases = test_data["test_cases"]
@@ -181,8 +184,9 @@ def run_tests():
             cat_avg_score = sum(r["score"] for r in cat_results) / len(cat_results)
             print(f"  {category}: {cat_avg_score*100:.1f}%")
 
-    # Save results
-    with open("/home/magic/work/GraphRAG/test_results.json", "w") as f:
+    # Save results to project directory
+    results_path = PROJECT_ROOT / "test_results.json"
+    with open(results_path, "w", encoding="utf-8") as f:
         json.dump({
             "timestamp": datetime.now().isoformat(),
             "summary": {
@@ -195,7 +199,7 @@ def run_tests():
             "results": results
         }, f, ensure_ascii=False, indent=2)
 
-    print(f"\nResults saved to: /home/magic/work/GraphRAG/test_results.json")
+    print(f"\nResults saved to: {results_path}")
     print("=" * 80)
 
     return results
