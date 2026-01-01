@@ -341,7 +341,104 @@ npm run dev
 ### 테스트 실행
 
 ```bash
+cd backend
+
+# 전체 테스트 실행
+pytest
+
+# 특정 테스트 모듈 실행
+pytest tests/test_auth.py        # 인증 테스트
+pytest tests/test_chat.py        # 채팅 API 테스트
+pytest tests/test_chatbot.py     # 챗봇 CRUD 테스트
+pytest tests/test_core_features.py  # 핵심 기능 테스트 (레이트 리미팅, 취소 등)
+
+# 커버리지 포함 테스트
+pytest --cov=src --cov-report=html
+
+# 통합 테스트 (수동 실행)
 python run_tests.py
+```
+
+## 보안 설정
+
+### 운영 환경 필수 설정
+
+운영 환경(`DEBUG=false`)에서는 다음 환경 변수를 **반드시** 변경해야 합니다. 기본값 사용 시 서버가 시작되지 않습니다:
+
+```env
+# 필수 변경 항목
+ADMIN_EMAIL=your-secure-admin@company.com
+ADMIN_PASSWORD=StrongP@ssw0rd!  # 8자 이상, 대소문자+숫자 포함
+JWT_SECRET_KEY=your-random-secret-key-at-least-32-characters
+```
+
+### 비밀번호 요구사항
+
+- 최소 8자 이상
+- 대문자 1자 이상
+- 소문자 1자 이상
+- 숫자 1자 이상
+- 일반적인 약한 비밀번호(admin123, password 등) 사용 불가
+
+### 관리자 계정 생성 스크립트
+
+배포 후 관리자 계정을 안전하게 생성하려면:
+
+```bash
+cd backend
+
+# 대화형 모드 (비밀번호 입력 요청)
+python scripts/create_admin.py
+
+# 환경 변수로 설정
+ADMIN_EMAIL=admin@company.com ADMIN_PASSWORD=SecureP@ss123 python scripts/create_admin.py
+
+# 명령줄 옵션으로 설정
+python scripts/create_admin.py --email admin@company.com --password SecureP@ss123
+
+# 기존 관리자 비밀번호 변경
+python scripts/create_admin.py --force
+```
+
+## Celery 워커 실행
+
+### 기본 워커 실행
+
+```bash
+cd backend
+
+# 단일 워커 실행
+celery -A src.core.celery_app worker --loglevel=info
+
+# 큐별 워커 실행
+celery -A src.core.celery_app worker -Q documents --loglevel=info
+celery -A src.core.celery_app worker -Q stats --loglevel=info
+```
+
+### 스케줄러 (Beat) 실행
+
+통계 집계 및 세션 정리 예약 작업을 위한 스케줄러:
+
+```bash
+celery -A src.core.celery_app beat --loglevel=info
+```
+
+### 예약 작업 목록
+
+| 작업 | 주기 | 설명 |
+|------|------|------|
+| `aggregate_daily_stats` | 매시간 | 챗봇별 일일 통계 집계 |
+| `cleanup_expired_sessions` | 30분마다 | 만료된 세션 정리 |
+
+### Docker 환경에서 실행
+
+```bash
+# Docker Compose 사용 시 자동으로 실행됨
+docker compose up -d
+
+# 개별 서비스 확인
+docker compose logs celery-worker
+docker compose logs celery-beat
 ```
 
 ## 라이선스
