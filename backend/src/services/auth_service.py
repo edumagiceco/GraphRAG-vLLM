@@ -1,8 +1,9 @@
 """
 Authentication service for JWT token management.
 """
+import re
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Tuple
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -14,6 +15,13 @@ from src.models.admin_user import AdminUser
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Minimum password requirements
+MIN_PASSWORD_LENGTH = 8
+COMMON_WEAK_PASSWORDS = {
+    "admin123", "password", "123456", "password123", "admin",
+    "12345678", "qwerty", "abc123", "letmein", "welcome",
+}
 
 
 class AuthService:
@@ -28,6 +36,55 @@ class AuthService:
     def hash_password(password: str) -> str:
         """Hash a plain password."""
         return pwd_context.hash(password)
+
+    @staticmethod
+    def validate_password_strength(password: str) -> Tuple[bool, str]:
+        """
+        Validate password strength.
+
+        Requirements:
+        - Minimum 8 characters
+        - At least one uppercase letter
+        - At least one lowercase letter
+        - At least one digit
+        - Not in common weak password list
+
+        Args:
+            password: Password to validate
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if len(password) < MIN_PASSWORD_LENGTH:
+            return False, f"Password must be at least {MIN_PASSWORD_LENGTH} characters long"
+
+        if password.lower() in COMMON_WEAK_PASSWORDS:
+            return False, "Password is too common. Please choose a stronger password"
+
+        if not re.search(r"[A-Z]", password):
+            return False, "Password must contain at least one uppercase letter"
+
+        if not re.search(r"[a-z]", password):
+            return False, "Password must contain at least one lowercase letter"
+
+        if not re.search(r"\d", password):
+            return False, "Password must contain at least one digit"
+
+        return True, ""
+
+    @staticmethod
+    def is_password_secure(password: str) -> bool:
+        """
+        Check if password meets security requirements.
+
+        Args:
+            password: Password to check
+
+        Returns:
+            True if password is secure, False otherwise
+        """
+        is_valid, _ = AuthService.validate_password_strength(password)
+        return is_valid
 
     @staticmethod
     def create_access_token(

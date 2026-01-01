@@ -105,9 +105,38 @@ class Settings(BaseSettings):
 
     # ==========================================================================
     # Initial Admin Account
+    # WARNING: Change these in production! Default credentials are insecure.
     # ==========================================================================
     admin_email: str = Field(default="admin@example.com")
     admin_password: str = Field(default="admin123")
+
+    # Default/insecure values for detection
+    _DEFAULT_ADMIN_EMAIL: str = "admin@example.com"
+    _DEFAULT_ADMIN_PASSWORD: str = "admin123"
+    _DEFAULT_JWT_SECRET: str = "your-secret-key-change-in-production"
+
+    @property
+    def is_using_default_credentials(self) -> bool:
+        """Check if using default (insecure) admin credentials."""
+        return (
+            self.admin_email == self._DEFAULT_ADMIN_EMAIL
+            and self.admin_password == self._DEFAULT_ADMIN_PASSWORD
+        )
+
+    @property
+    def is_using_default_jwt_secret(self) -> bool:
+        """Check if using default (insecure) JWT secret."""
+        return self.jwt_secret_key == self._DEFAULT_JWT_SECRET
+
+    @property
+    def has_insecure_defaults(self) -> bool:
+        """Check if any insecure default values are being used."""
+        return self.is_using_default_credentials or self.is_using_default_jwt_secret
+
+    @property
+    def is_production(self) -> bool:
+        """Check if running in production mode."""
+        return not self.debug
 
     # ==========================================================================
     # File Storage

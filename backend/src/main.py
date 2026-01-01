@@ -20,6 +20,52 @@ from src.core.rate_limit import setup_rate_limiting
 setup_logging()
 
 
+def check_security_configuration() -> None:
+    """
+    Check security configuration and warn/fail on insecure defaults.
+
+    Raises:
+        SystemExit: In production mode with insecure defaults
+    """
+    import logging
+    import sys
+
+    logger = logging.getLogger(__name__)
+
+    warnings = []
+
+    if settings.is_using_default_credentials:
+        warnings.append(
+            "SECURITY WARNING: Using default admin credentials (admin@example.com/admin123). "
+            "Set ADMIN_EMAIL and ADMIN_PASSWORD environment variables."
+        )
+
+    if settings.is_using_default_jwt_secret:
+        warnings.append(
+            "SECURITY WARNING: Using default JWT secret key. "
+            "Set JWT_SECRET_KEY environment variable with a secure random value."
+        )
+
+    if warnings:
+        for warning in warnings:
+            logger.warning("=" * 70)
+            logger.warning(warning)
+            logger.warning("=" * 70)
+
+        if settings.is_production:
+            logger.critical(
+                "FATAL: Insecure default configuration detected in production mode. "
+                "Please set secure values for admin credentials and JWT secret key. "
+                "Set DEBUG=true to bypass this check (NOT recommended for production)."
+            )
+            sys.exit(1)
+        else:
+            logger.warning(
+                "Running in DEBUG mode with insecure defaults. "
+                "This is acceptable for development but NOT for production."
+            )
+
+
 async def create_initial_admin() -> None:
     """Create initial admin user if not exists."""
     import logging
@@ -32,6 +78,14 @@ async def create_initial_admin() -> None:
         admin = await AuthService.create_initial_admin(session)
         if admin:
             logger.info(f"Created initial admin user: {admin.email}")
+
+            # Warn if password doesn't meet security requirements
+            if not AuthService.is_password_secure(settings.admin_password):
+                logger.warning(
+                    "Admin password does not meet security requirements. "
+                    "Consider using a stronger password with: "
+                    "8+ characters, uppercase, lowercase, and digits."
+                )
         else:
             logger.info("Admin user already exists")
 
@@ -47,6 +101,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Startup
     logger.info("Starting up GraphRAG Chatbot Platform...")
+
+    # Check security configuration BEFORE starting
+    check_security_configuration()
 
     # Initialize database connections
     await init_db()
