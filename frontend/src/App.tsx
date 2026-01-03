@@ -12,6 +12,7 @@ import ChatbotList from '@/pages/admin/ChatbotList'
 import ChatbotCreate from '@/pages/admin/ChatbotCreate'
 import ChatbotDetail from '@/pages/admin/ChatbotDetail'
 import ChatbotStats from '@/pages/admin/ChatbotStats'
+import ChatbotConversations from '@/pages/admin/ChatbotConversations'
 import ChatPage from '@/pages/chat/ChatPage'
 import Settings from '@/pages/admin/Settings'
 
@@ -75,6 +76,7 @@ function App() {
             <Route path="/admin/chatbots/new" element={<ChatbotCreate />} />
             <Route path="/admin/chatbots/:id" element={<ChatbotDetail />} />
             <Route path="/admin/chatbots/:id/stats" element={<ChatbotStats />} />
+            <Route path="/admin/chatbots/:id/conversations" element={<ChatbotConversations />} />
             <Route path="/admin/settings" element={<Settings />} />
           </Route>
 

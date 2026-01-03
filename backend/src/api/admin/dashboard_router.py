@@ -279,9 +279,10 @@ async def check_system_status() -> SystemStatus:
         import httpx
         async with httpx.AsyncClient(timeout=5.0) as client:
             if settings.llm_backend == "vllm":
-                response = await client.get(f"{settings.vllm_base_url}/health")
+                # vLLM uses OpenAI-compatible API, check /models endpoint
+                response = await client.get(f"{settings.vllm_base_url}/models")
             else:
-                response = await client.get(f"{settings.ollama_url}/api/tags")
+                response = await client.get(f"{settings.ollama_base_url}/api/tags")
             status.llm = "healthy" if response.status_code == 200 else "error"
     except Exception:
         status.llm = "error"

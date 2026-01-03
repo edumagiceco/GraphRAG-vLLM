@@ -381,7 +381,7 @@ class ChatService:
         session_id: str,
         chatbot: ChatbotService,
         user_message: str,
-    ) -> tuple[str, list[dict]]:
+    ) -> tuple[str, list[dict], dict]:
         """
         Generate a response to user message (non-streaming).
 
@@ -392,10 +392,18 @@ class ChatService:
             user_message: User's message
 
         Returns:
-            Tuple of (response text, citations)
+            Tuple of (response text, citations, metrics)
         """
+        from src.core.token_counter import TokenCounter
+
+        # Record start time
+        start_time = time.time()
+
         # Get chat history
         chat_history = await ChatService.get_chat_history(db, session_id)
+
+        # Record retrieval start time
+        retrieval_start_time = time.time()
 
         # Retrieve context
         retrieval_result = await retrieve_context(
@@ -404,8 +412,14 @@ class ChatService:
             include_graph=True,
         )
 
+        # Calculate retrieval time
+        retrieval_time_ms = int((time.time() - retrieval_start_time) * 1000)
+
         context = retrieval_result.get("context", "")
         citations = retrieval_result.get("citations", [])
+        vector_count = retrieval_result.get("vector_count", 0)
+        graph_count = retrieval_result.get("graph_count", 0)
+        retrieval_count = vector_count + graph_count
 
         # Generate response
         generator = get_answer_generator()
@@ -417,7 +431,29 @@ class ChatService:
             chat_history=chat_history,
         )
 
-        return response, citations
+        # Clean response (remove thinking content)
+        cleaned_response = clean_llm_response(response)
+
+        # Calculate elapsed time
+        response_time_ms = int((time.time() - start_time) * 1000)
+
+        # Calculate token usage
+        input_text = f"{chatbot.persona.get('system_prompt', '')} {context} {user_message}"
+        token_usage = TokenCounter.calculate_usage(
+            input_text=input_text,
+            output_text=cleaned_response,
+        )
+
+        # Build metrics
+        metrics = {
+            "response_time_ms": response_time_ms,
+            "input_tokens": token_usage.input_tokens,
+            "output_tokens": token_usage.output_tokens,
+            "retrieval_count": retrieval_count,
+            "retrieval_time_ms": retrieval_time_ms,
+        }
+
+        return cleaned_response, citations, metrics
 
     @staticmethod
     async def generate_response_stream(

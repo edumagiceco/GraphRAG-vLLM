@@ -120,3 +120,41 @@ export function formatDateOnly(
 ): string {
   return formatDateWithTimezone(dateString, timezone, false)
 }
+
+/**
+ * Format datetime using cached timezone (synchronous).
+ */
+export function formatDateTime(dateString: string | null | undefined): string {
+  return formatDateWithTimezone(dateString, getCachedTimezone(), true)
+}
+
+/**
+ * Format time only using cached timezone (synchronous).
+ */
+export function formatTime(dateString: string | null | undefined): string {
+  if (!dateString) return '-'
+
+  try {
+    let normalizedDateString = dateString
+    if (!dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
+      normalizedDateString = dateString + 'Z'
+    }
+
+    const date = new Date(normalizedDateString)
+    if (isNaN(date.getTime())) return '-'
+
+    const timezone = getCachedTimezone()
+    const offsetMinutes = parseGMTOffset(timezone)
+    const targetTimestamp = date.getTime() + offsetMinutes * 60 * 1000
+    const targetDate = new Date(targetTimestamp)
+
+    const hours = targetDate.getUTCHours()
+    const minutes = targetDate.getUTCMinutes()
+
+    const period = hours >= 12 ? '오후' : '오전'
+    const hour12 = hours % 12 || 12
+    return `${period} ${hour12}:${minutes.toString().padStart(2, '0')}`
+  } catch {
+    return '-'
+  }
+}

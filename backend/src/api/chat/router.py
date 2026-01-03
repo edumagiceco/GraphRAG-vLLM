@@ -106,20 +106,25 @@ async def create_session(
         await StatsService.increment_message_count(db, chatbot.id, count=1)
 
         # Generate response (non-streaming for session creation)
-        response_text, citations = await ChatService.generate_response(
+        response_text, citations, metrics = await ChatService.generate_response(
             db=db,
             session_id=session.id,
             chatbot=chatbot,
             user_message=request.initial_message,
         )
 
-        # Save assistant message
+        # Save assistant message with metrics
         assistant_message = await ChatService.add_message(
             db=db,
             session_id=session.id,
             role=DBMessageRole.ASSISTANT,
             content=response_text,
             sources=citations,
+            response_time_ms=metrics.get("response_time_ms"),
+            input_tokens=metrics.get("input_tokens"),
+            output_tokens=metrics.get("output_tokens"),
+            retrieval_count=metrics.get("retrieval_count"),
+            retrieval_time_ms=metrics.get("retrieval_time_ms"),
         )
         message_count += 1
 
@@ -319,20 +324,25 @@ async def send_message(
         )
     else:
         # Non-streaming response
-        response_text, citations = await ChatService.generate_response(
+        response_text, citations, metrics = await ChatService.generate_response(
             db=db,
             session_id=session_id,
             chatbot=chatbot,
             user_message=request.content,
         )
 
-        # Save assistant message
+        # Save assistant message with metrics
         assistant_message = await ChatService.add_message(
             db=db,
             session_id=session_id,
             role=DBMessageRole.ASSISTANT,
             content=response_text,
             sources=citations,
+            response_time_ms=metrics.get("response_time_ms"),
+            input_tokens=metrics.get("input_tokens"),
+            output_tokens=metrics.get("output_tokens"),
+            retrieval_count=metrics.get("retrieval_count"),
+            retrieval_time_ms=metrics.get("retrieval_time_ms"),
         )
 
         # Update daily message count for assistant message

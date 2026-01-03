@@ -345,7 +345,18 @@ export default function ChatbotStats() {
                     <tbody className="divide-y divide-gray-200">
                       {paginatedStats.map((day) => (
                         <tr key={day.date} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm text-gray-900">{day.date}</td>
+                          <td className="px-4 py-3 text-sm">
+                            {day.sessions > 0 || day.messages > 0 ? (
+                              <Link
+                                to={`/admin/chatbots/${id}/conversations?date=${day.date}`}
+                                className="text-primary-600 hover:text-primary-700 hover:underline font-medium"
+                              >
+                                {day.date}
+                              </Link>
+                            ) : (
+                              <span className="text-gray-900">{day.date}</span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-sm text-gray-900 text-right">
                             {day.sessions}
                           </td>

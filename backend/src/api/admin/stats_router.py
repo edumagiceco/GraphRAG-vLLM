@@ -1,17 +1,19 @@
 """
 Admin statistics API router.
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.api.deps import CurrentUser
 from src.services.chatbot_service import ChatbotServiceManager
 from src.services.stats_service import StatsService
+from src.models.conversation import ConversationSession, Message, MessageRole
 
 
 router = APIRouter()
@@ -257,3 +259,259 @@ async def recalculate_stats(
         "chatbot_id": chatbot_id,
         "days_processed": len(results),
     }
+
+
+# =============================================================================
+# Conversation Detail Schemas
+# =============================================================================
+
+class MessageDetail(BaseModel):
+    """Message detail for conversation view."""
+    id: str
+    role: str
+    content: str
+    sources: Optional[list] = None
+    response_time_ms: Optional[int] = None
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    retrieval_count: Optional[int] = None
+    created_at: datetime
+
+
+class SessionSummary(BaseModel):
+    """Session summary for conversation list."""
+    id: str
+    message_count: int
+    first_message: Optional[str] = None
+    created_at: datetime
+    last_message_at: Optional[datetime] = None
+    total_response_time_ms: Optional[int] = None
+    total_input_tokens: Optional[int] = None
+    total_output_tokens: Optional[int] = None
+
+
+class ConversationsResponse(BaseModel):
+    """Response for conversations list."""
+    chatbot_id: str
+    chatbot_name: str
+    date: str
+    sessions: list[SessionSummary]
+    total_sessions: int
+    total_messages: int
+
+
+class SessionDetailResponse(BaseModel):
+    """Response for session detail."""
+    session_id: str
+    chatbot_id: str
+    chatbot_name: str
+    message_count: int
+    created_at: datetime
+    messages: list[MessageDetail]
+
+
+# =============================================================================
+# Conversation Detail Endpoints
+# =============================================================================
+
+@router.get("/{chatbot_id}/conversations", response_model=ConversationsResponse)
+async def get_conversations_by_date(
+    chatbot_id: str,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+    date_str: str = Query(..., alias="date", description="Date in YYYY-MM-DD format"),
+    search: Optional[str] = Query(None, description="Search query to filter conversations"),
+) -> ConversationsResponse:
+    """
+    Get all conversation sessions for a chatbot on a specific date.
+
+    Args:
+        chatbot_id: Chatbot ID
+        current_user: Authenticated admin user
+        db: Database session
+        date_str: Target date in YYYY-MM-DD format
+        search: Optional search query to filter by message content
+
+    Returns:
+        List of conversation sessions with summaries
+    """
+    # Verify chatbot exists
+    chatbot = await ChatbotServiceManager.get_by_id(
+        db=db,
+        chatbot_id=chatbot_id,
+        admin_id=current_user.id,
+    )
+
+    if not chatbot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chatbot not found",
+        )
+
+    # Parse date
+    try:
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid date format. Use YYYY-MM-DD",
+        )
+
+    # Date boundaries
+    day_start = datetime.combine(target_date, datetime.min.time())
+    day_end = datetime.combine(target_date, datetime.max.time())
+
+    # Query sessions for the date
+    query = (
+        select(ConversationSession)
+        .where(
+            and_(
+                ConversationSession.chatbot_id == chatbot_id,
+                ConversationSession.created_at >= day_start,
+                ConversationSession.created_at <= day_end,
+            )
+        )
+        .order_by(ConversationSession.created_at.desc())
+    )
+
+    result = await db.execute(query)
+    sessions = result.scalars().all()
+
+    # Build session summaries
+    session_summaries = []
+    total_messages = 0
+
+    for session in sessions:
+        # Get messages for this session
+        msg_query = (
+            select(Message)
+            .where(Message.session_id == session.id)
+            .order_by(Message.created_at.asc())
+        )
+        msg_result = await db.execute(msg_query)
+        messages = msg_result.scalars().all()
+
+        # Apply search filter if provided
+        if search:
+            search_lower = search.lower()
+            has_match = any(search_lower in msg.content.lower() for msg in messages)
+            if not has_match:
+                continue
+
+        # Get first user message
+        first_user_msg = next(
+            (m for m in messages if m.role == MessageRole.USER),
+            None
+        )
+        first_message = first_user_msg.content[:100] if first_user_msg else None
+
+        # Get last message time
+        last_msg = messages[-1] if messages else None
+        last_message_at = last_msg.created_at if last_msg else None
+
+        # Calculate totals from assistant messages
+        assistant_messages = [m for m in messages if m.role == MessageRole.ASSISTANT]
+        total_response_time = sum(m.response_time_ms or 0 for m in assistant_messages)
+        total_input = sum(m.input_tokens or 0 for m in assistant_messages)
+        total_output = sum(m.output_tokens or 0 for m in assistant_messages)
+
+        session_summaries.append(SessionSummary(
+            id=session.id,
+            message_count=len(messages),
+            first_message=first_message,
+            created_at=session.created_at,
+            last_message_at=last_message_at,
+            total_response_time_ms=total_response_time if total_response_time > 0 else None,
+            total_input_tokens=total_input if total_input > 0 else None,
+            total_output_tokens=total_output if total_output > 0 else None,
+        ))
+        total_messages += len(messages)
+
+    return ConversationsResponse(
+        chatbot_id=chatbot_id,
+        chatbot_name=chatbot.name,
+        date=date_str,
+        sessions=session_summaries,
+        total_sessions=len(session_summaries),
+        total_messages=total_messages,
+    )
+
+
+@router.get("/{chatbot_id}/conversations/{session_id}", response_model=SessionDetailResponse)
+async def get_session_detail(
+    chatbot_id: str,
+    session_id: str,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> SessionDetailResponse:
+    """
+    Get detailed messages for a specific conversation session.
+
+    Args:
+        chatbot_id: Chatbot ID
+        session_id: Session ID
+        current_user: Authenticated admin user
+        db: Database session
+
+    Returns:
+        Session detail with all messages
+    """
+    # Verify chatbot exists
+    chatbot = await ChatbotServiceManager.get_by_id(
+        db=db,
+        chatbot_id=chatbot_id,
+        admin_id=current_user.id,
+    )
+
+    if not chatbot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chatbot not found",
+        )
+
+    # Get session
+    session_result = await db.execute(
+        select(ConversationSession).where(
+            and_(
+                ConversationSession.id == session_id,
+                ConversationSession.chatbot_id == chatbot_id,
+            )
+        )
+    )
+    session = session_result.scalar_one_or_none()
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    # Get messages
+    msg_result = await db.execute(
+        select(Message)
+        .where(Message.session_id == session_id)
+        .order_by(Message.created_at.asc())
+    )
+    messages = msg_result.scalars().all()
+
+    return SessionDetailResponse(
+        session_id=session_id,
+        chatbot_id=chatbot_id,
+        chatbot_name=chatbot.name,
+        message_count=len(messages),
+        created_at=session.created_at,
+        messages=[
+            MessageDetail(
+                id=msg.id,
+                role=msg.role.value,
+                content=msg.content,
+                sources=msg.sources,
+                response_time_ms=msg.response_time_ms,
+                input_tokens=msg.input_tokens,
+                output_tokens=msg.output_tokens,
+                retrieval_count=msg.retrieval_count,
+                created_at=msg.created_at,
+            )
+            for msg in messages
+        ],
+    )

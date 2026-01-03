@@ -99,3 +99,76 @@ export async function recalculateStats(
   )
   return response.data
 }
+
+// =============================================================================
+// Conversation Detail Types
+// =============================================================================
+
+export interface MessageDetail {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  sources: Array<{ filename?: string; chunk_index?: number; score?: number }> | null
+  response_time_ms: number | null
+  input_tokens: number | null
+  output_tokens: number | null
+  retrieval_count: number | null
+  created_at: string
+}
+
+export interface SessionSummary {
+  id: string
+  message_count: number
+  first_message: string | null
+  created_at: string
+  last_message_at: string | null
+  total_response_time_ms: number | null
+  total_input_tokens: number | null
+  total_output_tokens: number | null
+}
+
+export interface ConversationsResponse {
+  chatbot_id: string
+  chatbot_name: string
+  date: string
+  sessions: SessionSummary[]
+  total_sessions: number
+  total_messages: number
+}
+
+export interface SessionDetailResponse {
+  session_id: string
+  chatbot_id: string
+  chatbot_name: string
+  message_count: number
+  created_at: string
+  messages: MessageDetail[]
+}
+
+/**
+ * Get conversations for a chatbot on a specific date.
+ */
+export async function getConversationsByDate(
+  chatbotId: string,
+  date: string,
+  search?: string
+): Promise<ConversationsResponse> {
+  const response = await api.get<ConversationsResponse>(
+    `/chatbots/${chatbotId}/conversations`,
+    { params: { date, search } }
+  )
+  return response.data
+}
+
+/**
+ * Get detailed messages for a specific conversation session.
+ */
+export async function getSessionDetail(
+  chatbotId: string,
+  sessionId: string
+): Promise<SessionDetailResponse> {
+  const response = await api.get<SessionDetailResponse>(
+    `/chatbots/${chatbotId}/conversations/${sessionId}`
+  )
+  return response.data
+}
