@@ -53,7 +53,12 @@ class IndexVersion(Base):
         nullable=False,
     )
     status: Mapped[VersionStatus] = mapped_column(
-        SQLEnum(VersionStatus, name="version_status", create_type=False),
+        SQLEnum(
+            VersionStatus,
+            name="version_status",
+            create_type=False,
+            values_callable=lambda obj: [e.value for e in obj]
+        ),
         nullable=False,
         default=VersionStatus.BUILDING,
     )

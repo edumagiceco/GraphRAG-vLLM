@@ -108,7 +108,12 @@ class Message(Base):
 
     # Fields
     role: Mapped[MessageRole] = mapped_column(
-        SQLEnum(MessageRole, name="message_role", create_type=False),
+        SQLEnum(
+            MessageRole,
+            name="message_role",
+            create_type=False,
+            values_callable=lambda obj: [e.value for e in obj]
+        ),
         nullable=False,
     )
     content: Mapped[str] = mapped_column(

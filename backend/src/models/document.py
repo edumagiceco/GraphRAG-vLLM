@@ -62,7 +62,12 @@ class Document(Base):
         nullable=False,
     )
     status: Mapped[DocumentStatus] = mapped_column(
-        SQLEnum(DocumentStatus, name="document_status", create_type=False),
+        SQLEnum(
+            DocumentStatus,
+            name="document_status",
+            create_type=False,
+            values_callable=lambda obj: [e.value for e in obj]
+        ),
         nullable=False,
         default=DocumentStatus.PENDING,
         index=True,

@@ -62,7 +62,12 @@ class ChatbotService(Base):
         default={"tone": "professional", "language": "ko"},
     )
     status: Mapped[ChatbotStatus] = mapped_column(
-        SQLEnum(ChatbotStatus, name="chatbot_status", create_type=False),
+        SQLEnum(
+            ChatbotStatus,
+            name="chatbot_status",
+            create_type=False,
+            values_callable=lambda obj: [e.value for e in obj]
+        ),
         nullable=False,
         default=ChatbotStatus.PROCESSING,
         index=True,
