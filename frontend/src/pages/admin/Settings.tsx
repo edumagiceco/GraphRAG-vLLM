@@ -37,7 +37,7 @@ const TIMEZONE_OPTIONS = [
   { value: 'GMT+6', label: 'GMT+6 (Bangladesh)' },
   { value: 'GMT+7', label: 'GMT+7 (Bangkok, Jakarta)' },
   { value: 'GMT+8', label: 'GMT+8 (Singapore, Beijing)' },
-  { value: 'GMT+9', label: 'GMT+9 (Tokyo, Seoul)' },
+  { value: 'GMT+9', label: 'GMT+9 (Seoul)' },
   { value: 'GMT+10', label: 'GMT+10 (Sydney)' },
   { value: 'GMT+11', label: 'GMT+11 (Solomon Islands)' },
   { value: 'GMT+12', label: 'GMT+12 (Auckland, Fiji)' },

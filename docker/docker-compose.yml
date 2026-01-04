@@ -237,13 +237,13 @@ services:
       - VLLM_USAGE_STATS=0
       - PYTHONUNBUFFERED=1
     command: >
-      --model ${VLLM_MODEL:-spow12/Ko-Qwen2-7B-Instruct}
-      --gpu-memory-utilization 0.75
+      --model ${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct-AWQ}
+      --quantization awq
+      --gpu-memory-utilization 0.90
       --max-model-len 4096
       --enable-chunked-prefill
       --trust-remote-code
       --disable-log-requests
-      --enforce-eager
     deploy:
       resources:
         reservations:
