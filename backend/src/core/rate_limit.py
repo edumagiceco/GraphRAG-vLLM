@@ -6,6 +6,7 @@ import time
 from typing import Optional
 
 from fastapi import Request, HTTPException, status
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.core.redis import RedisClient
@@ -180,7 +181,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 f"Rate limit exceeded for {request.url.path} - "
                 f"retry after {retry_after}s"
             )
-            raise RateLimitExceeded(retry_after=retry_after or 60)
+            return JSONResponse(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                content={"detail": "Rate limit exceeded. Please try again later."},
+                headers={"Retry-After": str(retry_after or 60)},
+            )
 
         response = await call_next(request)
 

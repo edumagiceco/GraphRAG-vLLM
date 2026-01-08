@@ -31,6 +31,9 @@ services:
       - JWT_EXPIRE_MINUTES=60
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
+      - RATE_LIMIT_PER_HOUR=${RATE_LIMIT_PER_HOUR:-1000}
     volumes:
       - pdf_storage:/app/storage
       - ../backend/src:/app/src:ro
@@ -240,7 +243,7 @@ services:
       --model ${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct-AWQ}
       --quantization awq
       --gpu-memory-utilization 0.90
-      --max-model-len 4096
+      --max-model-len 8192
       --enable-chunked-prefill
       --trust-remote-code
       --disable-log-requests
