@@ -88,6 +88,9 @@ async def create_session(
         chatbot_id=chatbot.id,
     )
 
+    # Update daily session count
+    await StatsService.increment_session_count(db, chatbot.id)
+
     initial_response = None
     message_count = 0
 
@@ -130,6 +133,15 @@ async def create_session(
 
         # Update daily message count for assistant message
         await StatsService.increment_message_count(db, chatbot.id, count=1)
+
+        # Update daily token statistics
+        await StatsService.increment_token_count(
+            db=db,
+            chatbot_id=chatbot.id,
+            input_tokens=metrics.get("input_tokens", 0),
+            output_tokens=metrics.get("output_tokens", 0),
+            retrieval_count=metrics.get("retrieval_count", 0),
+        )
 
         # Build initial response
         initial_response = MessageResponse(
@@ -297,6 +309,15 @@ async def send_message(
                         # Update daily message count for assistant message
                         await StatsService.increment_message_count(db, chatbot.id, count=1)
 
+                        # Update daily token statistics
+                        await StatsService.increment_token_count(
+                            db=db,
+                            chatbot_id=chatbot.id,
+                            input_tokens=metrics.get("input_tokens", 0),
+                            output_tokens=metrics.get("output_tokens", 0),
+                            retrieval_count=metrics.get("retrieval_count", 0),
+                        )
+
                         # Include elapsed_time, model and metrics from the original chunk
                         done_response = {
                             'type': 'done',
@@ -347,6 +368,15 @@ async def send_message(
 
         # Update daily message count for assistant message
         await StatsService.increment_message_count(db, chatbot.id, count=1)
+
+        # Update daily token statistics
+        await StatsService.increment_token_count(
+            db=db,
+            chatbot_id=chatbot.id,
+            input_tokens=metrics.get("input_tokens", 0),
+            output_tokens=metrics.get("output_tokens", 0),
+            retrieval_count=metrics.get("retrieval_count", 0),
+        )
 
         return MessageResponse(
             id=assistant_message.id,

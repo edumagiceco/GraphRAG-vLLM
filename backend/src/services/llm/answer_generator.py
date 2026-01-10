@@ -5,6 +5,7 @@ Supports both streaming and non-streaming responses.
 from typing import AsyncIterator, Optional
 
 from src.core.llm import get_llm, OllamaLLM
+from src.core.token_counter import TokenUsage
 from src.services.llm.prompt_builder import build_chat_prompt
 from src.services.llm.source_formatter import format_sources_in_response
 
@@ -68,6 +69,51 @@ class AnswerGenerator:
             response = format_sources_in_response(response, citations)
 
         return response
+
+    async def generate_with_usage(
+        self,
+        user_message: str,
+        context: str,
+        persona: Optional[dict] = None,
+        citations: Optional[list[dict]] = None,
+        chat_history: Optional[list[dict]] = None,
+    ) -> tuple[str, Optional[TokenUsage]]:
+        """
+        Generate a complete answer with token usage (non-streaming).
+
+        Args:
+            user_message: User's question
+            context: Retrieved context
+            persona: Optional persona configuration
+            citations: Source citations
+            chat_history: Conversation history
+
+        Returns:
+            Tuple of (generated answer text, token usage if available)
+        """
+        system_prompt, messages = build_chat_prompt(
+            user_message=user_message,
+            context=context,
+            persona=persona,
+            citations=citations,
+            chat_history=chat_history,
+        )
+
+        # Get the last user message (with context)
+        full_message = messages[-1]["content"] if messages else user_message
+
+        # Generate response with usage
+        response, token_usage = await self._llm.generate_with_usage(
+            user_message=full_message,
+            system_prompt=system_prompt,
+            chat_history=messages[:-1] if len(messages) > 1 else None,
+        )
+
+        # Format sources in response
+        if citations:
+            response = format_sources_in_response(response, citations)
+
+        return response, token_usage
 
     async def generate_stream(
         self,

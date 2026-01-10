@@ -421,9 +421,9 @@ class ChatService:
         graph_count = retrieval_result.get("graph_count", 0)
         retrieval_count = vector_count + graph_count
 
-        # Generate response
+        # Generate response with token usage
         generator = get_answer_generator()
-        response = await generator.generate(
+        response, llm_token_usage = await generator.generate_with_usage(
             user_message=user_message,
             context=context,
             persona=chatbot.persona,
@@ -437,12 +437,16 @@ class ChatService:
         # Calculate elapsed time
         response_time_ms = int((time.time() - start_time) * 1000)
 
-        # Calculate token usage
-        input_text = f"{chatbot.persona.get('system_prompt', '')} {context} {user_message}"
-        token_usage = TokenCounter.calculate_usage(
-            input_text=input_text,
-            output_text=cleaned_response,
-        )
+        # Use LLM token usage if available, otherwise fall back to estimation
+        if llm_token_usage and llm_token_usage.total_tokens > 0:
+            token_usage = llm_token_usage
+        else:
+            # Fall back to text-based estimation
+            input_text = f"{chatbot.persona.get('system_prompt', '')} {context} {user_message}"
+            token_usage = TokenCounter.calculate_usage(
+                input_text=input_text,
+                output_text=cleaned_response,
+            )
 
         # Build metrics
         metrics = {

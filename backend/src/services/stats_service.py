@@ -116,6 +116,48 @@ class StatsService:
         return stats
 
     @staticmethod
+    async def increment_token_count(
+        db: AsyncSession,
+        chatbot_id: str,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        retrieval_count: int = 0,
+        stats_date: Optional[date] = None,
+    ) -> ChatbotStats:
+        """
+        Increment token and retrieval counts for a chatbot.
+
+        Args:
+            db: Database session
+            chatbot_id: Chatbot ID
+            input_tokens: Number of input tokens to add
+            output_tokens: Number of output tokens to add
+            retrieval_count: Number of retrievals to add
+            stats_date: Date for stats (defaults to today)
+
+        Returns:
+            Updated ChatbotStats
+        """
+        stats_date = stats_date or date.today()
+        stats = await StatsService.get_or_create_daily_stats(db, chatbot_id, stats_date)
+
+        # Initialize if None
+        if stats.total_input_tokens is None:
+            stats.total_input_tokens = 0
+        if stats.total_output_tokens is None:
+            stats.total_output_tokens = 0
+        if stats.total_retrieval_count is None:
+            stats.total_retrieval_count = 0
+
+        stats.total_input_tokens += input_tokens
+        stats.total_output_tokens += output_tokens
+        stats.total_retrieval_count += retrieval_count
+
+        await db.commit()
+        await db.refresh(stats)
+        return stats
+
+    @staticmethod
     async def get_stats_range(
         db: AsyncSession,
         chatbot_id: str,

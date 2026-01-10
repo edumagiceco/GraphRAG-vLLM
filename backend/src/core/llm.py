@@ -11,6 +11,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_core.output_parsers import StrOutputParser
 
 from src.core.config import settings
+from src.core.token_counter import TokenCounter, TokenUsage
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +193,28 @@ class OllamaLLM(BaseLLM):
         messages = self._build_messages(user_message, system_prompt, chat_history)
         response = await self._llm.ainvoke(messages)
         return response.content
+
+    async def generate_with_usage(
+        self,
+        user_message: str,
+        system_prompt: Optional[str] = None,
+        chat_history: Optional[list[dict]] = None,
+    ) -> tuple[str, Optional[TokenUsage]]:
+        """
+        Generate a response and return token usage from LLM response metadata.
+
+        Args:
+            user_message: User's message
+            system_prompt: Optional system prompt for persona
+            chat_history: Optional conversation history
+
+        Returns:
+            Tuple of (response text, token usage if available)
+        """
+        messages = self._build_messages(user_message, system_prompt, chat_history)
+        response = await self._llm.ainvoke(messages)
+        token_usage = TokenCounter.extract_from_response(response)
+        return response.content, token_usage
 
     async def generate_stream(
         self,
@@ -378,6 +401,28 @@ class VLLMChat(BaseLLM):
         messages = self._build_messages(user_message, system_prompt, chat_history)
         response = await self._llm.ainvoke(messages)
         return response.content
+
+    async def generate_with_usage(
+        self,
+        user_message: str,
+        system_prompt: Optional[str] = None,
+        chat_history: Optional[list[dict]] = None,
+    ) -> tuple[str, Optional[TokenUsage]]:
+        """
+        Generate a response and return token usage from LLM response metadata.
+
+        Args:
+            user_message: User's message
+            system_prompt: Optional system prompt for persona
+            chat_history: Optional conversation history
+
+        Returns:
+            Tuple of (response text, token usage if available)
+        """
+        messages = self._build_messages(user_message, system_prompt, chat_history)
+        response = await self._llm.ainvoke(messages)
+        token_usage = TokenCounter.extract_from_response(response)
+        return response.content, token_usage
 
     async def generate_stream(
         self,
